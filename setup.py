@@ -23,5 +23,8 @@ setuptools.setup(
         "nrn-glia>=0.1.7",
         "nrn-patch>=0.0.2",
         "numpy"
-     ]
+     ],
+     extras_require={
+      "dev": ["sphinx", "sphinx_rtd_theme"]
+     }
  )
