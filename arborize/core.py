@@ -18,23 +18,22 @@ class Builder:
         responsibility to add or label sections.
 
         Constructing your own Builders is of limited use, because every model's
-        ``morphologies`` field takes a builder function and automatically constructs and
-        applies the ``Builder`` from there:
+        ``morphologies`` field takes morphology files and/or builder functions and
+        automatically constructs and applies the ``Builder`` from there:
 
         .. code-block:: python
 
             class MyNeuron(NeuronModel):
                 @staticmethod
                 def build(model, *args, **kwargs):
-                    model.soma = [p.Section()]
-                    model.dendrites = [p.Section()]
-                    model.axon = [p.Section()]
+                    model.soma.append(p.Section())
+                    model.dendrites.append(p.Section())
+                    model.axon.append(p.Section())
 
+                # Creates 2 different morphologies for this cell model.
                 morphologies = [
-                    ('morfo1.swc', self.extend_axon),
-                    ('morfo2.swc', self.extend_axon),
-                    # And why not a morphology that just builds 1 axonal segment?
-                    self.extend_axon
+                    build, # Create 1 soma, dendrite & axonal compartment
+                    ('morfo2.swc', self.extend_axon) # First loads morfo2.swc
                 ]
     """
     def __init__(self, builder):
