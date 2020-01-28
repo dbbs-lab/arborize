@@ -128,6 +128,7 @@ class NeuronModel:
 
         # Set the attributes on this section and its mechanisms
         for attribute, value in definition["attributes"].items():
+            mechanism_notice = ""
             if isinstance(attribute, tuple):
                 # `attribute` is an attribute of a specific mechanism and defined
                 # as `(attribute, mechanism)`. This makes use of the fact that
@@ -135,8 +136,9 @@ class NeuronModel:
                 # `attribute_mechanism` instead of having to iterate over all
                 # the segments and setting `mechanism.attribute` for each
                 mechanism = attribute[1]
+                mechanism_notice = " specified for '{}'".format(mechanism)
                 if not mechanism in resolved_mechanisms:
-                    raise MechanismAttributeError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism))
+                    raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism))
                 mechanism_mod = resolved_mechanisms[mechanism]
                 attribute_name = attribute[0] + "_" + mechanism_mod
             else:
@@ -149,7 +151,14 @@ class NeuronModel:
                 value = value(section.diam)
             # Use setattr to set the obtained attribute information. __dict__
             # does not work as NEURON's Python interface is incomplete.
-            setattr(section.__neuron__(), attribute_name, value)
+            try:
+                setattr(section.__neuron__(), attribute_name, value)
+            except AttributeError as e:
+                raise SectionAttributeError("The attribute '{}'{} is not found an a section labelled '{}'.".format(
+                    attribute_name,
+                    mechanism_notice,
+                    ",".join(section.labels)
+                )) from None
 
         # Copy the synapse definitions to this section
         if "synapses" in definition:

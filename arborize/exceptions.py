@@ -10,6 +10,9 @@ class ModelClassError(ModelError):
 class MorphologyBuilderError(ModelError):
     pass
 
+class MechanismNotPresentError(ModelClassError):
+    pass
+
 class MechanismAttributeError(ModelClassError):
     pass
 
