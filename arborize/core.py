@@ -192,12 +192,23 @@ class NeuronModel:
             :param synapse_type: The name of the synapse type.
             :type synapse_type: string
         '''
-        labels = to_section.labels
+
+        synapse = self.create_synapse(to_section, synapse_type=synapse_type)
+        to_section.synapses.append(synapse)
+        from_section.connect_points(synapse._point_process)
+        return synapse
+
+    def record_soma(self):
+        self.Vm = self.soma[0].record()
+        return self.Vm
+
+    def create_synapse(self, section, synapse_type=None):
+        labels = section.labels
         labels_name = ",".join(labels)
         if not hasattr(self.__class__, "synapse_types"):
             raise ModelClassError("Can't connect to a NeuronModel that does not specify any `synapse_types` on its class.")
         synapse_types = self.__class__.synapse_types
-        if not hasattr(to_section, "available_synapse_types") or not to_section.available_synapse_types:
+        if not hasattr(section, "available_synapse_types") or not section.available_synapse_types:
             raise ConnectionError("Can't connect to '{}' labelled section without available synapse types.".format(labels_name))
         section_synapses = to_section.available_synapse_types
 
@@ -208,7 +219,7 @@ class NeuronModel:
                 synapse_definition = synapse_types[section_synapses[0]]
         else:
             if not synapse_type in section_synapses:
-                raise SynapseNotPresentError("The synapse type '{}' is not present on '{}' labelled section.".format(synapse_type, labels_name))
+                raise SynapseNotPresentError("The synapse type '{}' is not present on '{}' labelled section in {}.".format(synapse_type, labels_name, self.__class__.__name__))
             elif not synapse_type in synapse_types:
                 raise SynapseNotDefinedError("The synapse type '{}' is used on '{}' labelled section but not defined in the model.".format(synapse_type, labels_name))
             else:
@@ -220,14 +231,7 @@ class NeuronModel:
         if isinstance(synapse_point_process, tuple):
             synapse_variant = synapse_point_process[1]
             synapse_point_process = synapse_point_process[0]
-        synapse = Synapse(self, to_section, synapse_point_process, synapse_attributes, variant=synapse_variant)
-        to_section.synapses.append(synapse)
-        from_section.connect_points(synapse._point_process)
-        return synapse
-
-    def record_soma(self):
-        self.Vm = self.soma[0].record()
-        return self.Vm
+        return Synapse(self, to_section, synapse_point_process, synapse_attributes, variant=synapse_variant)
 
 
 @contextmanager
