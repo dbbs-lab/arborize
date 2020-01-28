@@ -21,6 +21,7 @@ setuptools.setup(
      ],
      install_requires=[
         "nrn-glia>=0.1.7",
-        "nrn-patch>=0.0.2"
+        "nrn-patch>=0.0.2",
+        "numpy"
      ]
  )
