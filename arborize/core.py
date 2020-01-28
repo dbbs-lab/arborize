@@ -1,15 +1,43 @@
 import os, sys
 from contextlib import contextmanager
-from patch import p
-from patch.objects import Section
 from .exceptions import *
-from .synapse import Synapse
 import numpy as np
-import glia as g
-p.load_file('stdlib.hoc')
-p.load_file('import3d.hoc')
+
+if not os.getenv('READTHEDOCS'):
+    from patch import p
+    from patch.objects import Section
+    import glia as g
+    from .synapse import Synapse
+    p.load_file('stdlib.hoc')
+    p.load_file('import3d.hoc')
 
 class Builder:
+    """
+        A builder is a method interface that exposes an ``instantiate`` method that can be
+        passed the model that is being instantiated. You can create your own builder by
+        initializing a builder with a builder function, which is a function that takes the
+        model and all it's contructor arguments as its own arguments. It's a builder's
+        responsibility to add or label sections.
+
+        Constructing your own Builders is of limited use, because every model's
+        ``morphologies`` field takes morphology files and/or builder functions and
+        automatically constructs and applies the ``Builder`` from there:
+
+        .. code-block:: python
+
+            class MyNeuron(NeuronModel):
+                @staticmethod
+                def build(model, *args, **kwargs):
+                    model.soma.append(p.Section())
+                    model.dendrites.append(p.Section())
+                    model.axon.append(p.Section())
+
+                # Creates 2 different morphologies for this cell model.
+                morphologies = [
+                    build, # Create 1 soma, dendrite & axonal compartment
+                    ('morfo2.swc', self.extend_axon) # First loads morfo2.swc
+                ]
+    """
     def __init__(self, builder):
         self.builder = builder
 
@@ -17,7 +45,16 @@ class Builder:
         self.builder(model, *args, **kwargs)
 
 class ComboBuilder(Builder):
+    """
+        Chains together multiple morphology files and/or builder functions.
+    """
     def __init__(self, *pipeline):
+        """
+            Chain together multiple morphology files and/or builder functions.
+
+            :param pipeline: Morphology file strings or builder functions.
+            :type pipeline: vararg. str/function.
+        """
         def outer_builder(model, *args, **kwargs):
             for part in pipeline:
                 # Apply all builders in the pipeline sequence in order.
