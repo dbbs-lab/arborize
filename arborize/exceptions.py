@@ -13,7 +13,7 @@ class MorphologyBuilderError(ModelError):
 class MechanismNotPresentError(ModelClassError):
     pass
 
-class MechanismAttributeError(ModelClassError):
+class SectionAttributeError(ModelClassError):
     pass
 
 class ConnectionError(ArborizeError):
