@@ -75,6 +75,9 @@ class NeuronModel:
 
         # Initialize variables
         self.position = np.array(position if not position is None else [0., 0., 0.])
+        self.dendrites = []
+        self.axon = []
+        self.soma = []
 
         morphology_loader = self.__class__.imported_morphologies[morphology_id]
         # Use the Import3D/Builder to instantiate this cell.
@@ -84,7 +87,8 @@ class NeuronModel:
         self.soma = [s if isinstance(s, Section) else Section(p, s) for s in self.soma]
         self.dend = [s if isinstance(s, Section) else Section(p, s) for s in self.dend]
         self.axon = [s if isinstance(s, Section) else Section(p, s) for s in self.axon]
-        self.dendrites = self.dend
+        self.dendrites = self.dend + self.dendrites
+        del self.dend
         self.sections = self.soma + self.dendrites + self.axon
         for section in self.sections:
             section.synapses = []
