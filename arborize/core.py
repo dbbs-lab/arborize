@@ -10,6 +10,33 @@ p.load_file('stdlib.hoc')
 p.load_file('import3d.hoc')
 
 class Builder:
+    """
+        A builder is a method interface that exposes an ``instantiate`` method that can be
+        passed the model that is being instantiated. You can create your own builder by
+        initializing a builder with a builder function, which is a function that takes the
+        model and all it's contructor arguments as its own arguments. It's a builder's
+        responsibility to add or label sections.
+
+        Constructing your own Builders is of limited use, because every model's
+        ``morphologies`` field takes a builder function and automatically constructs and
+        applies the ``Builder`` from there:
+
+        .. code-block:: python
+
+            class MyNeuron(NeuronModel):
+                @staticmethod
+                def build(model, *args, **kwargs):
+                    model.soma = [p.Section()]
+                    model.dendrites = [p.Section()]
+                    model.axon = [p.Section()]
+
+                morphologies = [
+                    ('morfo1.swc', self.extend_axon),
+                    ('morfo2.swc', self.extend_axon),
+                    # And why not a morphology that just builds 1 axonal segment?
+                    self.extend_axon
+                ]
+    """
     def __init__(self, builder):
         self.builder = builder
 
@@ -17,7 +44,16 @@ class Builder:
         self.builder(model, *args, **kwargs)
 
 class ComboBuilder(Builder):
+    """
+        Chains together multiple morphology files and/or builder functions.
+    """
     def __init__(self, *pipeline):
+        """
+            Chain together multiple morphology files and/or builder functions.
+
+            :param pipeline: Morphology file strings or builder functions.
+            :type pipeline: vararg. str/function.
+        """
         def outer_builder(model, *args, **kwargs):
             for part in pipeline:
                 # Apply all builders in the pipeline sequence in order.
