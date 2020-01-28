@@ -154,10 +154,11 @@ class NeuronModel:
             try:
                 setattr(section.__neuron__(), attribute_name, value)
             except AttributeError as e:
-                raise SectionAttributeError("The attribute '{}'{} is not found an a section labelled '{}'.".format(
+                raise SectionAttributeError("The attribute '{}'{} is not found on a section labelled '{}' in the {}.".format(
                     attribute_name,
                     mechanism_notice,
-                    ",".join(section.labels)
+                    ",".join(section.labels),
+                    self.__class__.__name__
                 )) from None
 
         # Copy the synapse definitions to this section
@@ -273,7 +274,6 @@ def make_builder(morphology):
         and hasattr(type(morphology), "__getitem__")
     ):
         # If it is a sequence, construct a ComboBuilder that sequentially applies the builders.
-        print("combo building:", morphology[0], morphology[1])
         return ComboBuilder(*morphology)
     else:
         raise MorphologyBuilderException("Invalid morphology data: provide a builder function or a path string to a morphology file.")
