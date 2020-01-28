@@ -1,13 +1,15 @@
 import os, sys
 from contextlib import contextmanager
-from patch import p
-from patch.objects import Section
 from .exceptions import *
-from .synapse import Synapse
 import numpy as np
-import glia as g
-p.load_file('stdlib.hoc')
-p.load_file('import3d.hoc')
+
+if not os.getenv('READTHEDOCS'):
+    from patch import p
+    from patch.objects import Section
+    import glia as g
+    from .synapse import Synapse
+    p.load_file('stdlib.hoc')
+    p.load_file('import3d.hoc')
 
 class Builder:
     """
