@@ -266,7 +266,7 @@ class NeuronModel:
         synapse_types = self.__class__.synapse_types
         if not hasattr(section, "available_synapse_types") or not section.available_synapse_types:
             raise ConnectionError("Can't connect to '{}' labelled section without available synapse types.".format(labels_name))
-        section_synapses = to_section.available_synapse_types
+        section_synapses = section.available_synapse_types
 
         if synapse_type is None:
             if len(section_synapses) != 1:
@@ -287,7 +287,7 @@ class NeuronModel:
         if isinstance(synapse_point_process, tuple):
             synapse_variant = synapse_point_process[1]
             synapse_point_process = synapse_point_process[0]
-        return Synapse(self, to_section, synapse_point_process, synapse_attributes, variant=synapse_variant)
+        return Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant)
 
 
 @contextmanager
