@@ -119,10 +119,11 @@ class NeuronModel:
             cls.imported_morphologies.append(builder)
 
     def _apply_labels(self):
-        self.soma[0].labels = ["soma"]
         for section in self.sections:
             if not hasattr(section, "labels"):
                 section.labels = []
+        for section in self.soma:
+            section.labels.append("soma")
         for section in self.dendrites:
             section.labels.append("dendrites")
         for section in self.axon:
