@@ -64,7 +64,11 @@ class ComboBuilder(Builder):
         self.builder = outer_builder
 
 class NeuronModel:
-
+    """
+        The base class that helps you describe your model. Generate all the required
+        sections, insert all mechanisms and define all synapses using the appropriate
+        class variables. See the :doc:`/neuron_model`
+    """
     def __init__(self, position=None, morphology_id=0):
         # Check if morphologies were specified
         if not hasattr(self.__class__, "morphologies") or len(self.__class__.morphologies) == 0:
@@ -244,6 +248,16 @@ class NeuronModel:
         return self.Vm
 
     def create_synapse(self, section, synapse_type=None):
+        '''
+            Create a synapse in the specified ``section`` based on the synapse definitions
+            present on this model. Additionally a `synapse_type` can be specified if
+            there's multiple synapse types present on the section.
+
+            :param section: The postsynaptic section.
+            :type section: :class:`.Section`
+            :param synapse_type: The name of the synapse type.
+            :type synapse_type: string
+        '''
         labels = section.labels
         labels_name = ",".join(labels)
         if not hasattr(self.__class__, "synapse_types"):
@@ -276,7 +290,7 @@ class NeuronModel:
 
 
 @contextmanager
-def suppress_stdout():
+def _suppress_stdout():
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         sys.stdout = devnull
@@ -293,32 +307,39 @@ def _import3d_load(morphology):
         if not os.path.isfile(file):
             continue
         loader = p.Import3d_Neurolucida3()
-        with suppress_stdout():
+        with _suppress_stdout():
             loader.input(file)
         loaded_morphology = p.Import3d_GUI(loader, 0)
         return loaded_morphology
     raise FileNotFoundError("Can't find '{}', use arborize.add_directory to add a morphology directory.".format(morphology))
 
 def import3d(file, model):
+    """
+        Perform NEURON's Import3D and import ``file`` 3D data into the model.
+    """
     loaded_morphology = NeuronModel._import3d_load(file)
     loaded_morphology.instantiate(model)
 
 
-def make_builder(morphology):
-    if type(morphology) is str:
+def make_builder(blueprint):
+    """
+        Turn a blueprint (morphology string, builder function or tuple of the former)
+        into a Builder.
+    """
+    if type(blueprint) is str:
         # Use Import3D as builder.
-        return _import3d_load(morphology)
-    if callable(morphology):
+        return _import3d_load(blueprint)
+    if callable(blueprint):
         # If a function is given as morphology, treat it as a builder function
-        return Builder(morphology)
-    elif isinstance(morphology, staticmethod):
+        return Builder(blueprint)
+    elif isinstance(blueprint, staticmethod):
         # If a static method is given as morphology, treat it as a builder function
-        return Builder(morphology.__func__)
+        return Builder(blueprint.__func__)
     elif (
-        hasattr(type(morphology), "__len__")
-        and hasattr(type(morphology), "__getitem__")
+        hasattr(type(blueprint), "__len__")
+        and hasattr(type(blueprint), "__getitem__")
     ):
         # If it is a sequence, construct a ComboBuilder that sequentially applies the builders.
-        return ComboBuilder(*morphology)
+        return ComboBuilder(*blueprint)
     else:
-        raise MorphologyBuilderException("Invalid morphology data: provide a builder function or a path string to a morphology file.")
+        raise MorphologyBuilderException("Invalid blueprint data: provide a builder function or a path string to a morphology file.")

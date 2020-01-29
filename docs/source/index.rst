@@ -10,6 +10,7 @@ Welcome to Arborize's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   neuron_model
    modules
 
 
