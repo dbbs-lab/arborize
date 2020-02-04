@@ -6,8 +6,9 @@ class Synapse:
         self._cell = cell
         self._section = section
         self._point_process_name = point_process_name
-        self._point_process_glia_name = g.resolve(point_process_name, pkg="dbbs_mod_collection", variant=variant)
-        self._point_process = g.insert(section, point_process_name, pkg="dbbs_mod_collection", variant=variant)
+        with g.context(pkg=cell._package):
+            self._point_process_glia_name = g.resolve(point_process_name, variant=variant)
+            self._point_process = g.insert(section, point_process_name, variant=variant)
         section.__ref__(self)
         for key, value in attributes.items():
             setattr(self._point_process, key, value)

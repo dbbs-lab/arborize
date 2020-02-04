@@ -100,9 +100,18 @@ class NeuronModel:
         # Do labelling of sections into special sections
         self._apply_labels()
 
-        # Initialize the labelled sections
-        for section in self.sections:
-            self._init_section(section)
+        # Check whether mechanisms should be chosen from a preferred package
+        if hasattr(self.__class__, "glia_package"):
+            self._package = self.__class__.glia_package
+        else:
+            self._package = None
+
+        # Set up preferred glia context
+        with g.context(pkg=self._package):
+            # Initialize the labelled sections
+            # This inserts all mechanisms
+            for section in self.sections:
+                self._init_section(section)
 
         # Call boot method so that child classes can easily do stuff after init.
         self.boot()
@@ -163,10 +172,10 @@ class NeuronModel:
                 # Mechanism defined as: `(mech_name, mech_variant)`
                 mechanism_variant = mechanism[1]
                 mechanism = mechanism[0]
-                mod_name = g.resolve(mechanism, pkg="dbbs_mod_collection", variant=mechanism_variant)
+                mod_name = g.resolve(mechanism, variant=mechanism_variant)
             else:
                 # Mechanism defined as string
-                mod_name = g.resolve(mechanism, pkg="dbbs_mod_collection")
+                mod_name = g.resolve(mechanism)
             # Map the mechanism to the mod name
             resolved_mechanisms[mechanism] = mod_name
             # Use Glia to insert the resolved mod.
