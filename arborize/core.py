@@ -257,6 +257,10 @@ class NeuronModel:
         self.Vm = self.soma[0].record()
         return self.Vm
 
+    def create_transmitter(self, section, gid):
+        if not hasattr(section, "_transmitter"):
+            section._transmitter = p.ParallelCon(section, gid)
+
     def create_synapse(self, section, synapse_type=None):
         '''
             Create a synapse in the specified ``section`` based on the synapse definitions
