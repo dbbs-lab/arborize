@@ -260,6 +260,23 @@ class NeuronModel:
     def create_transmitter(self, section, gid):
         if not hasattr(section, "_transmitter"):
             section._transmitter = p.ParallelCon(section, gid)
+        return section._transmitter
+
+    def create_receiver(self, section, gid, synapse_type):
+        if not hasattr(section, "_receivers"):
+            section._receivers = {}
+        # Create the requested synapse if it does not exist on the Section yet.
+        if synapse_type not in section._receivers:
+            section._receivers[synapse_type] = {
+                "synapse": self.create_synapse(section, synapse_type),
+                "receivers": {},
+            }
+        synapse_receiver = section._receivers[synapse_type]
+        receivers = synapse_receiver["receivers"]
+        if gid not in receivers:
+            # If this synapse is not receiving from this GID yet, add a ParallelCon for it
+            receivers[gid] = p.ParallelCon(gid, synapse_receiver["synapse"]._point_process)
+        return receivers[gid]
 
     def create_synapse(self, section, synapse_type=None):
         '''
