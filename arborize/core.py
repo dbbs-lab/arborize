@@ -254,15 +254,36 @@ class NeuronModel:
         return synapse
 
     def record_soma(self):
+        """
+            Create a recording vector for the soma and store it under ``self.Vm``
+        """
         self.Vm = self.soma[0].record()
         return self.Vm
 
     def create_transmitter(self, section, gid):
+        """
+            Create a parallel simulation spike transmitter on a section of this cell.
+            Transmitters fire spikes when the treshold reaches -20mV and broadcast a
+            SpikeEvent to all nodes with the specified GID.
+
+            :param section: The section to insert the transmitter on. Each section can only have 1 transmitter
+            :param gid: The global identifier of this transmitter. With this number receivers can subscribe to this transmitter's SpikeEvents
+        """
         if not hasattr(section, "_transmitter"):
             section._transmitter = p.ParallelCon(section, gid)
         return section._transmitter
 
     def create_receiver(self, section, gid, synapse_type):
+        """
+            Create a parallel simulation spike receiver on a synapse on a section of this
+            cell. Receivers link parallel SpikeEvents with a certain GID to a synapse.
+            Each synapse can listen to any amount of GID's. Each section can only contain
+            1 synapse of each type.
+
+            :param section: The section to insert the transmitter on. Each section can only have 1 transmitter
+            :param gid: The global identifier of this transmitter. With this number receivers can subscribe to this transmitter's SpikeEvents
+            :param synapse_type: Name of the synapse. It needs to be a valid name defined on the section.
+        """
         if not hasattr(section, "_receivers"):
             section._receivers = {}
         # Create the requested synapse if it does not exist on the Section yet.
