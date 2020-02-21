@@ -72,7 +72,7 @@ class NeuronModel:
     def __init__(self, position=None, morphology_id=0):
         # Check if morphologies were specified
         if not hasattr(self.__class__, "morphologies") or len(self.__class__.morphologies) == 0:
-            raise ModelClassError("All NeuronModel classes should specify a non-empty array of morphologies")
+            raise ModelClassError("The NeuronModel class '{}' does not specify a non-empty array of morphologies".format(self.__class__.__name__))
         # Import the morphologies if they haven't been imported yet
         if not hasattr(self.__class__, "imported_morphologies"):
             self.__class__._import_morphologies()
@@ -88,9 +88,9 @@ class NeuronModel:
         morphology_loader.instantiate(self)
 
         # Wrap the neuron sections in our own Section, if not done by the Builder
-        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in self.soma]
-        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in self.dend]
-        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in self.axon]
+        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in (self.soma or [])]
+        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in (self.dend or [])]
+        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in (self.axon or [])]
         self.dendrites = self.dend + self.dendrites
         del self.dend
         self.sections = self.soma + self.dendrites + self.axon
