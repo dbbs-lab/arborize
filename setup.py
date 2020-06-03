@@ -20,7 +20,7 @@ setuptools.setup(
          "Operating System :: OS Independent",
      ],
      install_requires=[
-        "nrn-glia>=0.1.7",
+        "nrn-glia>=0.3.1",
         "nrn-patch>=0.0.2",
         "numpy"
      ],
