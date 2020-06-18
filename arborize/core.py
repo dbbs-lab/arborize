@@ -132,11 +132,11 @@ class NeuronModel:
             if not hasattr(section, "labels"):
                 section.labels = []
         for section in self.soma:
-            section.labels.append("soma")
+            section.labels.insert(0, "soma")
         for section in self.dendrites:
-            section.labels.append("dendrites")
+            section.labels.insert(0, "dendrites")
         for section in self.axon:
-            section.labels.append("axon")
+            section.labels.insert(0, "axon")
 
         # Apply special labels
         if hasattr(self.__class__, "labels"):
