@@ -13,6 +13,9 @@ class MorphologyBuilderError(ModelError):
 class MechanismNotPresentError(ModelClassError):
     pass
 
+class LabelNotDefinedError(ModelClassError):
+    pass
+
 class SectionAttributeError(ModelClassError):
     pass
 

@@ -159,11 +159,19 @@ class NeuronModel:
         # Set the amount of sections to some standard odd amount
         section.nseg = 1 + (2 * int(section.L / 40))
         for label in section.labels:
+            if label not in self.__class__.section_types:
+                raise LabelNotDefinedError("Label '{}' given to a section but not defined in {}".format(
+                    label,
+                    self.__class__.__name__
+                ))
             self._init_section_label(section, label)
+        if hasattr(section, "_arbz_resolved_mechanisms"):
+            del section._arbz_resolved_mechanisms
 
     def _init_section_label(self, section, label):
         # Store a map of mechanisms to full mod_names for the attribute setter
-        resolved_mechanisms = {}
+        if not hasattr(section, "_arbz_resolved_mechanisms"):
+            section._arbz_resolved_mechanisms = {}
         definition = self.__class__.section_types[label]
         # Insert the mechanisms
         for mechanism in definition["mechanisms"]:
@@ -177,7 +185,7 @@ class NeuronModel:
                 # Mechanism defined as string
                 mod_name = g.resolve(mechanism)
             # Map the mechanism to the mod name
-            resolved_mechanisms[mechanism] = mod_name
+            section._arbz_resolved_mechanisms[mechanism] = mod_name
             # Use Glia to insert the resolved mod.
             g.insert(section, mod_name)
 
@@ -192,9 +200,9 @@ class NeuronModel:
                 # the segments and setting `mechanism.attribute` for each
                 mechanism = attribute[1]
                 mechanism_notice = " specified for '{}'".format(mechanism)
-                if not mechanism in resolved_mechanisms:
+                if not mechanism in section._arbz_resolved_mechanisms:
                     raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism))
-                mechanism_mod = resolved_mechanisms[mechanism]
+                mechanism_mod = section._arbz_resolved_mechanisms[mechanism]
                 attribute_name = attribute[0] + "_" + mechanism_mod
             else:
                 # `attribute` is an attribute of the section and is defined as string
