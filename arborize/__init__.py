@@ -1,7 +1,7 @@
 from .core import NeuronModel
 from .synapse import Synapse
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 _morphology_dirs = []
 
