@@ -1,4 +1,4 @@
-from .core import NeuronModel
+from .core import *
 from .synapse import Synapse
 
 __version__ = "1.1.2"
