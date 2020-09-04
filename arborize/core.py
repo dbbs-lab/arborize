@@ -8,6 +8,7 @@ if not os.getenv('READTHEDOCS'):
     from patch.objects import Section
     import glia as g
     from .synapse import Synapse
+    import glia.exceptions
     p.load_file('stdlib.hoc')
     p.load_file('import3d.hoc')
 
@@ -175,15 +176,20 @@ class NeuronModel:
         definition = self.__class__.section_types[label]
         # Insert the mechanisms
         for mechanism in definition["mechanisms"]:
-            # Use Glia to resolve the mechanism selection.
-            if isinstance(mechanism, tuple):
-                # Mechanism defined as: `(mech_name, mech_variant)`
-                mechanism_variant = mechanism[1]
-                mechanism = mechanism[0]
-                mod_name = g.resolve(mechanism, variant=mechanism_variant)
-            else:
-                # Mechanism defined as string
-                mod_name = g.resolve(mechanism)
+            try:
+                # Use Glia to resolve the mechanism selection.
+                if isinstance(mechanism, tuple):
+                    # Mechanism defined as: `(mech_name, mech_variant)`
+                    mechanism_variant = mechanism[1]
+                    mechanism = mechanism[0]
+                    mod_name = g.resolve(mechanism, variant=mechanism_variant)
+                else:
+                    # Mechanism defined as string
+                    mechanism_variant = "0"
+                    mod_name = g.resolve(mechanism)
+            except glia.exceptions.NoMatchesError as e:
+                e = MechanismNotFoundError("Could not find '{}.{}' in the glia library".format(mechanism, mechanism_variant), mechanism, mechanism_variant, "fee", "fi", "fo")
+                raise e from None
             # Map the mechanism to the mod name
             section._arbz_resolved_mechanisms[mechanism] = mod_name
             # Use Glia to insert the resolved mod.
@@ -201,7 +207,7 @@ class NeuronModel:
                 mechanism = attribute[1]
                 mechanism_notice = " specified for '{}'".format(mechanism)
                 if not mechanism in section._arbz_resolved_mechanisms:
-                    raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism))
+                    raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism), mechanism) from None
                 mechanism_mod = section._arbz_resolved_mechanisms[mechanism]
                 attribute_name = attribute[0] + "_" + mechanism_mod
             else:
@@ -217,12 +223,11 @@ class NeuronModel:
             try:
                 setattr(section.__neuron__(), attribute_name, value)
             except AttributeError as e:
-                raise SectionAttributeError("The attribute '{}'{} is not found on a section labelled '{}' in the {}.".format(
+                raise SectionAttributeError("The attribute '{}'{} is not found on a section with labels {}.".format(
                     attribute_name,
                     mechanism_notice,
-                    ",".join(section.labels),
-                    self.__class__.__name__
-                )) from None
+                    ", ".join("'{}'".format(l) for l in section.labels)
+                ), attribute, section.labels) from None
 
         # Copy the synapse definitions to this section
         if "synapses" in definition:
@@ -238,6 +243,12 @@ class NeuronModel:
             Add an id that can be used as reference for outside software.
         '''
         self.ref_id = id
+
+    def get_reference_id(self, id):
+        '''
+            Return the reference id.
+        '''
+        return self.ref_id
 
     def connect(self, from_cell, from_section, to_section, synapse_type=None):
         '''
