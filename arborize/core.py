@@ -14,15 +14,17 @@ if not os.getenv('READTHEDOCS'):
 
 class Builder:
     """
-        A builder is a method interface that exposes an ``instantiate`` method that can be
-        passed the model that is being instantiated. You can create your own builder by
-        initializing a builder with a builder function, which is a function that takes the
-        model and all it's contructor arguments as its own arguments. It's a builder's
-        responsibility to add or label sections.
+        Builders are method interfaces used to build cell models. They are responsible for
+        adding and/or labelling sections on the model object during initialization.
+
+        A builder should define an ``instantiate`` method that is passed the model under
+        construction.
+
+        This base Builder class can be instantiated with a function to which the model
+        under construction is delegated.
 
         Constructing your own Builders is of limited use, because every model's
-        ``morphologies`` field takes morphology files and/or builder functions and
-        automatically constructs and applies the ``Builder`` from there:
+        ``morphologies`` field makes Builders out of functions or morphology files:
 
         .. code-block:: python
 
@@ -36,7 +38,7 @@ class Builder:
                 # Creates 2 different morphologies for this cell model.
                 morphologies = [
                     build, # Create 1 soma, dendrite & axonal compartment
-                    ('morfo2.swc', self.extend_axon) # First loads morfo2.swc
+                    ('morfo2.swc', self.extend_axon) # First loads morfo2.swc, then run the `extend_axon` method.
                 ]
     """
     def __init__(self, builder):
@@ -359,6 +361,56 @@ class NeuronModel:
             synapse_point_process = synapse_point_process[0]
         return Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant)
 
+def get_section_receivers(section, types=None):
+    """
+        Collect a dictionary of the section's receiver descriptions matching the given
+        types.
+
+        :param section: Section to inspect.
+        :type section: :class:`Section <patch.objects.Section>`
+        :param types: List of names of the synapse types to look for. Collects all types if omitted.
+        :type types: list
+    """
+    if not hasattr(section, "_receivers"):
+        return {}
+    if types is None:
+        return section._receivers
+    return {k: v for k, v in section._receivers.items() if k in types}
+
+def get_section_receiver(section, type):
+    """
+        Collect the section's receiver description matching the given type.
+
+        :param section: Section to inspect.
+        :type section: :class:`Section <patch.objects.Section>`
+        :param type: Synapse type to look for.
+        :type type: str
+    """
+    r = get_section_receivers(section, [type])
+    return r[0] if len(r) else None
+
+def get_section_synapses(section, types=None):
+    """
+        Collect the section's synapses matching the given types.
+
+        :param section: Section to inspect.
+        :type section: :class:`Section <patch.objects.Section>`
+        :param types: Synapse types to look for.
+        :type types: str
+    """
+    return {type: receiver["synapse"] for type, receiver in get_section_receivers(section, types).items()}
+
+def get_section_synapse(section, type):
+    """
+        Collect the section's synapse matching the given type.
+
+        :param section: Section to inspect.
+        :type section: :class:`Section <patch.objects.Section>`
+        :param type: Synapse type to look for.
+        :type type: str
+    """
+    s = get_section_synapses(section, [type])
+    return s[0] if len(s) else None
 
 @contextmanager
 def _suppress_stdout():
@@ -414,3 +466,5 @@ def make_builder(blueprint):
         return ComboBuilder(*blueprint)
     else:
         raise MorphologyBuilderException("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
+
+__all__ = ["NeuronModel", "get_section_synapses", "get_section_synapse", "get_section_receivers", "get_section_receiver"]
