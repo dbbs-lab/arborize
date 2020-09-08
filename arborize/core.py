@@ -344,7 +344,8 @@ class NeuronModel:
             if len(section_synapses) != 1:
                 raise AmbiguousSynapseError("Too many possible synapse types: " + ", ".join(section_synapses) + ". Specify a `synapse_type` for the connection.")
             else:
-                synapse_definition = synapse_types[section_synapses[0]]
+                synapse_type = section_synapses[0]
+                synapse_definition = synapse_types[synapse_type]
         else:
             if not synapse_type in section_synapses:
                 raise SynapseNotPresentError("The synapse type '{}' is not present on '{}' labelled section in {}.".format(synapse_type, labels_name, self.__class__.__name__))
@@ -359,7 +360,11 @@ class NeuronModel:
         if isinstance(synapse_point_process, tuple):
             synapse_variant = synapse_point_process[1]
             synapse_point_process = synapse_point_process[0]
-        return Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant)
+        synapse = Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant)
+        if not hasattr(section, "_synapses"):
+            section._synapses = {}
+        section._synapses[synapse_type] = synapse
+        return synapse
 
 def get_section_receivers(section, types=None):
     """
@@ -398,7 +403,11 @@ def get_section_synapses(section, types=None):
         :param types: Synapse types to look for.
         :type types: str
     """
-    return {type: receiver["synapse"] for type, receiver in get_section_receivers(section, types).items()}
+    if not hasattr(section, "_synapses"):
+        return {}
+    if types is None:
+        return section._synapses
+    return {k: v for k, v in section._synapses.items() if k in types}
 
 def get_section_synapse(section, type):
     """
