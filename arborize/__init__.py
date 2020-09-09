@@ -1,7 +1,7 @@
 from .core import *
 from .synapse import Synapse
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 _morphology_dirs = []
 
