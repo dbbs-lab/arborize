@@ -2,8 +2,9 @@ import glia as g
 
 class Synapse:
 
-    def __init__(self, cell, section, point_process_name, attributes = {}, variant=None):
+    def __init__(self, cell, section, point_process_name, attributes = {}, variant=None, type=None):
         self._cell = cell
+        self._type = type
         self._section = section
         self._point_process_name = point_process_name
         with g.context(pkg=cell._package):

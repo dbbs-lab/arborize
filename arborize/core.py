@@ -306,19 +306,17 @@ class NeuronModel:
             :param synapse_type: Name of the synapse. It needs to be a valid name defined on the section.
         """
         if not hasattr(section, "_receivers"):
-            section._receivers = {}
-        # Create the requested synapse if it does not exist on the Section yet.
-        if synapse_type not in section._receivers:
-            section._receivers[synapse_type] = {
-                "synapse": self.create_synapse(section, synapse_type),
-                "receivers": {},
-            }
-        synapse_receiver = section._receivers[synapse_type]
-        receivers = synapse_receiver["receivers"]
-        if gid not in receivers:
-            # If this synapse is not receiving from this GID yet, add a ParallelCon for it
-            receivers[gid] = p.ParallelCon(gid, synapse_receiver["synapse"]._point_process)
-        return receivers[gid]
+            section._receivers = []
+        synapse = self.create_synapse(section, synapse_type)
+        parallel_con = p.ParallelCon(gid, synapse._point_process)
+        receiver_dict = {
+            "type": synapse_type,
+            "synapse": synapse,
+            "receiver": parallel_con,
+            "gid": gid
+        }
+        section._receivers.append(receiver_dict)
+        return parallel_con
 
     def create_synapse(self, section, synapse_type=None):
         '''
@@ -360,10 +358,10 @@ class NeuronModel:
         if isinstance(synapse_point_process, tuple):
             synapse_variant = synapse_point_process[1]
             synapse_point_process = synapse_point_process[0]
-        synapse = Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant)
+        synapse = Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant, type=synapse_type)
         if not hasattr(section, "_synapses"):
-            section._synapses = {}
-        section._synapses[synapse_type] = synapse
+            section._synapses = []
+        section._synapses.append(synapse)
         return synapse
 
 def get_section_receivers(section, types=None):
@@ -380,19 +378,7 @@ def get_section_receivers(section, types=None):
         return {}
     if types is None:
         return section._receivers
-    return {k: v for k, v in section._receivers.items() if k in types}
-
-def get_section_receiver(section, type):
-    """
-        Collect the section's receiver description matching the given type.
-
-        :param section: Section to inspect.
-        :type section: :class:`Section <patch.objects.Section>`
-        :param type: Synapse type to look for.
-        :type type: str
-    """
-    r = get_section_receivers(section, [type])
-    return r[0] if len(r) else None
+    return [v for v in section._receivers if v["type"] in types]
 
 def get_section_synapses(section, types=None):
     """
@@ -404,22 +390,10 @@ def get_section_synapses(section, types=None):
         :type types: str
     """
     if not hasattr(section, "_synapses"):
-        return {}
+        return []
     if types is None:
         return section._synapses
-    return {k: v for k, v in section._synapses.items() if k in types}
-
-def get_section_synapse(section, type):
-    """
-        Collect the section's synapse matching the given type.
-
-        :param section: Section to inspect.
-        :type section: :class:`Section <patch.objects.Section>`
-        :param type: Synapse type to look for.
-        :type type: str
-    """
-    s = get_section_synapses(section, [type])
-    return s[0] if len(s) else None
+    return [v for v in section._synapses if v._type in types]
 
 @contextmanager
 def _suppress_stdout():
@@ -476,4 +450,4 @@ def make_builder(blueprint):
     else:
         raise MorphologyBuilderException("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
 
-__all__ = ["NeuronModel", "get_section_synapses", "get_section_synapse", "get_section_receivers", "get_section_receiver"]
+__all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers"]
