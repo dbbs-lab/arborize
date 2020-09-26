@@ -394,6 +394,10 @@ class NeuronModel:
         section._synapses.append(synapse)
         return synapse
 
+    @classmethod
+    def make_builder(cls, morphology, path=None):
+        return make_builder(morphology, path=path or cls.morphology_directory)
+
 def get_section_receivers(section, types=None):
     """
         Collect a dictionary of the section's receiver descriptions matching the given
