@@ -1,12 +1,17 @@
 import setuptools
-import arborize
+
+with open(os.path.join(os.path.dirname(__file__), "arborize", "__init__.py"), "r") as f:
+    for line in f:
+        if "__version__ = " in line:
+            exec(line.strip())
+            break
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
      name='arborize',
-     version=arborize.__version__,
+     version=__version__,
      author="Robin De Schepper",
      author_email="robingilbert.deschepper@unipv.it",
      description="Write descriptions for NEURON cell models in an Arbor-like manner.",
