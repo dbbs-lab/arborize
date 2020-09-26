@@ -1,4 +1,4 @@
-import setuptools
+import setuptools, os
 
 with open(os.path.join(os.path.dirname(__file__), "arborize", "__init__.py"), "r") as f:
     for line in f:
