@@ -73,6 +73,8 @@ class NeuronModel:
         class variables. See the :doc:`/neuron_model`
     """
     def __init__(self, position=None, morphology=0, candidate=0, synapses=0):
+        if self.__class__._abstract:
+            raise NotImplementedError(f"Can't instantiate abstract NeuronModel {self.__class__.__name__}")
         # Initialize variables
         self.position = np.array(position if not position is None else [0., 0., 0.])
         self.dendrites = []
@@ -114,10 +116,11 @@ class NeuronModel:
     def _prep_section(self, section):
         section.synapses = []
 
-
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, abstract=False, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._init_morphologies()
+        cls._abstract = abstract
+        if not abstract:
+            cls._init_morphologies()
         if not hasattr(cls, "glia_package"):
             cls.glia_package = None
 
