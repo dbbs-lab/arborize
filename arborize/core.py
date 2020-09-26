@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, errr
 from contextlib import contextmanager
 from .exceptions import *
 import numpy as np
@@ -206,10 +206,15 @@ class NeuronModel:
 
     def _init_section_label(self, section, label):
         definition = self.__class__.section_types[label]
-        if "mechanism" in definition:
+        skipped_mechs = True
+        if "mechanisms" in definition:
             self._apply_section_mechanisms(section, definition["mechanisms"])
+            skipped_mechs = False
         if "attributes" in definition:
-            self._apply_section_attributes(section, definition["attributes"])
+            try:
+                self._apply_section_attributes(section, definition["attributes"])
+            except SectionAttributeError as e:
+                errr.wrap(SectionAttributeError, e, prepend="No mechanisms were inserted! ")
         if "synapses" in definition:
             self._apply_section_synapses(section, definition["synapses"])
 
