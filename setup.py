@@ -22,7 +22,8 @@ setuptools.setup(
      install_requires=[
         "nrn-glia>=0.3.1",
         "nrn-patch>=2.1.1",
-        "numpy"
+        "numpy",
+        "errr"
      ],
      extras_require={
       "dev": ["sphinx", "sphinx_rtd_theme"]
