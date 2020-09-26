@@ -58,10 +58,10 @@ class ComboBuilder(Builder):
             :param pipeline: Morphology file strings or builder functions.
             :type pipeline: vararg. str/function.
         """
+        builder_pipe = [make_builder(part, path=path) for part in pipeline]
         def outer_builder(model, *args, **kwargs):
-            for part in pipeline:
-                # Apply all builders in the pipeline sequence in order.
-                builder = make_builder(part)
+            # Apply all builders in the pipeline sequence in order.
+            for builder in builder_pipe:
                 builder.instantiate(model, *args, **kwargs)
 
         self.builder = outer_builder
