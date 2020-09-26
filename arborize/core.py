@@ -454,15 +454,18 @@ def import3d(file, model):
     loaded_morphology.instantiate(model)
 
 
-def make_builder(blueprint):
+def make_builder(blueprint, path=None):
     """
         Turn a blueprint (morphology string, builder function or tuple of the former)
         into a Builder.
     """
     if type(blueprint) is str:
         if not os.path.isabs(blueprint):
-            raise MorphologyBuilderError("Morphology filestrings have to be absolute paths.")
-        # Use Import3D as builder.
+            if path is None:
+                raise MorphologyBuilderError("Morphology filestrings have to be absolute paths or a `path` keyword argument must be provided.")
+            else:
+                blueprint = os.path.join(path, blueprint)
+        # Use Import3D as builder
         return _import3d_load(blueprint)
     if callable(blueprint):
         # If a function is given as morphology, treat it as a builder function
