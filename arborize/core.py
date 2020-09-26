@@ -467,12 +467,9 @@ def make_builder(blueprint):
     elif isinstance(blueprint, staticmethod):
         # If a static method is given as morphology, treat it as a builder function
         return Builder(blueprint.__func__)
-    elif (
-        hasattr(type(blueprint), "__len__")
-        and hasattr(type(blueprint), "__getitem__")
-    ):
-        # If it is a sequence, construct a ComboBuilder that sequentially applies the builders.
-        return ComboBuilder(*blueprint)
+    elif hasattr(type(blueprint), "__iter__"):
+        # If it is iterable, construct a ComboBuilder that sequentially applies the builders.
+        return ComboBuilder(*iter(blueprint))
     else:
         raise MorphologyBuilderException("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
 
