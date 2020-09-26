@@ -51,12 +51,14 @@ class ComboBuilder(Builder):
     """
         Chains together multiple morphology files and/or builder functions.
     """
-    def __init__(self, *pipeline):
+    def __init__(self, *pipeline, path=None):
         """
             Chain together multiple morphology files and/or builder functions.
 
             :param pipeline: Morphology file strings or builder functions.
             :type pipeline: vararg. str/function.
+            :param path: Root path that all non absolute path strings will be combined with.
+            :type path: string
         """
         builder_pipe = [make_builder(part, path=path) for part in pipeline]
         def outer_builder(model, *args, **kwargs):
@@ -139,16 +141,11 @@ class NeuronModel:
 
     @classmethod
     def _import_morphologies(cls):
-        default_dir = cls._get_default_morphology_dir()
-        m_dir = os.path.abspath(getattr(cls, "morphology_directory", default_dir))
+        m_dir = getattr(cls, "morphology_directory", cls._get_default_morphology_dir())
+        cls.morphology_directory = os.path.abspath(m_dir)
         cls.imported_morphologies = []
-        # Make sure all the morpho strings are absolute
-        for i, morphology in enumerate(cls.morphologies):
-            if isinstance(morphology, str) and not os.path.isabs(morphology):
-                cls.morphologies[i] = os.path.join(m_dir, morphology)
-        # Pass the absolute file locations to the builder
         for morphology in cls.morphologies:
-            builder = make_builder(morphology)
+            builder = cls.make_builder(morphology, path=m_dir)
             cls.imported_morphologies.append(builder)
 
     @classmethod
@@ -479,8 +476,8 @@ def make_builder(blueprint, path=None):
         return Builder(blueprint.__func__)
     elif hasattr(type(blueprint), "__iter__"):
         # If it is iterable, construct a ComboBuilder that sequentially applies the builders.
-        return ComboBuilder(*iter(blueprint))
+        return ComboBuilder(*iter(blueprint), path=path)
     else:
-        raise MorphologyBuilderException("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
+        raise MorphologyBuilderError("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
 
 __all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers"]
