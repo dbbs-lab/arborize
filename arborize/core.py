@@ -79,7 +79,7 @@ class NeuronModel:
         self.axon = []
         self.soma = []
 
-        morphology_loader = self.__class__.imported_morphologies[morphology_id]
+        morphology_loader = self.__class__.imported_morphologies[morphology]
         # Use the Import3D/Builder to instantiate this cell.
         morphology_loader.instantiate(self)
         self._wrap_sections()
