@@ -208,10 +208,12 @@ class NeuronModel:
             try:
                 # Use Glia to resolve the mechanism selection.
                 if isinstance(mechanism, tuple):
-                    # Mechanism defined as: `(mech_name, mech_variant)`
-                    mechanism_variant = mechanism[1]
+                    # Mechanism defined as: `(mech_name, mech_variant [, package])`
+                    select = {"variant": mechanism[1]}
+                    if len(mechanism) == 3:
+                        select["pkg"] = mechanism[2]
                     mechanism = mechanism[0]
-                    mod_name = g.resolve(mechanism, variant=mechanism_variant)
+                    mod_name = g.resolve(mechanism, **select)
                 else:
                     # Mechanism defined as string
                     mechanism_variant = "0"
