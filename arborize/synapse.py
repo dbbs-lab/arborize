@@ -7,7 +7,7 @@ class Synapse:
         self._type = type
         self._section = section
         self._point_process_name = point_process_name
-        with g.context(pkg=cell._package):
+        with g.context(pkg=cell.__class__.glia_package):
             self._point_process_glia_name = g.resolve(point_process_name, variant=variant)
             self._point_process = g.insert(section, point_process_name, variant=variant)
         section.__ref__(self)

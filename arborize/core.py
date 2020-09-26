@@ -72,14 +72,7 @@ class NeuronModel:
         sections, insert all mechanisms and define all synapses using the appropriate
         class variables. See the :doc:`/neuron_model`
     """
-    def __init__(self, position=None, morphology_id=0):
-        # Check if morphologies were specified
-        if not hasattr(self.__class__, "morphologies") or len(self.__class__.morphologies) == 0:
-            raise ModelClassError("The NeuronModel class '{}' does not specify a non-empty array of morphologies".format(self.__class__.__name__))
-        # Import the morphologies if they haven't been imported yet
-        if not hasattr(self.__class__, "imported_morphologies"):
-            self.__class__._import_morphologies()
-
+    def __init__(self, position=None, morphology=0, candidate=0, synapses=0):
         # Initialize variables
         self.position = np.array(position if not position is None else [0., 0., 0.])
         self.dendrites = []
@@ -89,25 +82,11 @@ class NeuronModel:
         morphology_loader = self.__class__.imported_morphologies[morphology_id]
         # Use the Import3D/Builder to instantiate this cell.
         morphology_loader.instantiate(self)
-
-        # Wrap the neuron sections in our own Section, if not done by the Builder
-        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in (self.soma or [])]
-        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in (self.dend or [])]
-        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in (self.axon or [])]
-        self.dendrites = self.dend + self.dendrites
-        del self.dend
-        self.sections = self.soma + self.dendrites + self.axon
-        for section in self.sections:
-            section.synapses = []
+        self._wrap_sections()
+        self._collect_sections()
 
         # Do labelling of sections into special sections
         self._apply_labels()
-
-        # Check whether mechanisms should be chosen from a preferred package
-        if hasattr(self.__class__, "glia_package"):
-            self._package = self.__class__.glia_package
-        else:
-            self._package = None
 
         # Set up preferred glia context
         with g.context(pkg=self._package):
@@ -119,16 +98,64 @@ class NeuronModel:
         # Call boot method so that child classes can easily do stuff after init.
         self.boot()
 
+    def _wrap_sections(self):
+        # Wrap the neuron sections in our own Section, if not done by the Builder
+        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in (self.soma or [])]
+        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in (self.dend or [])]
+        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in (self.axon or [])]
+
+    def _collect_sections(self):
+        self.dendrites = self.dend + self.dendrites
+        del self.dend
+        self.sections = self.soma + self.dendrites + self.axon
+        for section in self.sections:
+            self._prep_section(section)
+
+    def _prep_section(self, section):
+        section.synapses = []
+
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._init_morphologies()
+        if not hasattr(cls, "glia_package"):
+            cls.glia_package = None
+
+    @classmethod
+    def _init_morphologies(cls):
+        # Check if morphologies were specified
+        if not hasattr(cls, "morphologies") or len(cls.morphologies) == 0:
+            raise ModelClassError("The NeuronModel class '{}' does not specify a non-empty array of morphologies".format(cls.__name__))
+        # Import the morphologies if they haven't been imported yet
+        if not hasattr(cls, "imported_morphologies"):
+            cls._import_morphologies()
+
     def __getattr__(self, attribute):
         if attribute == "Vm":
             raise NotRecordingError("Trying to read Vm of a cell that is not recording." + " Use `.record_soma()` to enable recording of the soma.")
 
     @classmethod
     def _import_morphologies(cls):
+        default_dir = cls._get_default_morphology_dir()
+        m_dir = os.path.abspath(getattr(cls, "morphology_directory", default_dir))
         cls.imported_morphologies = []
+        # Make sure all the morpho strings are absolute
+        for i, morphology in enumerate(cls.morphologies):
+            if isinstance(morphology, str) and not os.path.isabs(morphology):
+                cls.morphologies[i] = os.path.join(m_dir, morphology)
+        # Pass the absolute file locations to the builder
         for morphology in cls.morphologies:
             builder = make_builder(morphology)
             cls.imported_morphologies.append(builder)
+
+    @classmethod
+    def _get_default_morphology_dir(cls):
+        import os, inspect
+
+        try:
+            return os.path.abspath(os.path.join(inspect.getfile(cls), "morphologies"))
+        except:
+            return os.getcwd()
 
     def _apply_labels(self):
         for section in self.sections:
@@ -407,16 +434,13 @@ def _suppress_stdout():
 
 
 def _import3d_load(morphology):
-    from . import _morphology_dirs
-    for dir in _morphology_dirs:
-        file = os.path.join(dir, morphology)
-        if not os.path.isfile(file):
-            continue
-        loader = p.Import3d_Neurolucida3()
-        with _suppress_stdout():
-            loader.input(file)
-        loaded_morphology = p.Import3d_GUI(loader, 0)
-        return loaded_morphology
+    if not os.path.isfile(morphology):
+        raise FileNotFoundError(f"'{morphology}' can't be found. Provide a correct absolute path in the `morphologies` array or add a `morphology_directory` class attribute to your NeuronModel.")
+    loader = p.Import3d_Neurolucida3()
+    with _suppress_stdout():
+        loader.input(morphology)
+    loaded_morphology = p.Import3d_GUI(loader, 0)
+    return loaded_morphology
     raise FileNotFoundError("Can't find '{}', use arborize.add_directory to add a morphology directory.".format(morphology))
 
 def import3d(file, model):
@@ -433,6 +457,8 @@ def make_builder(blueprint):
         into a Builder.
     """
     if type(blueprint) is str:
+        if not os.path.isabs(blueprint):
+            raise MorphologyBuilderError("Morphology filestrings have to be absolute paths.")
         # Use Import3D as builder.
         return _import3d_load(blueprint)
     if callable(blueprint):
