@@ -1,4 +1,4 @@
 sphinx==2.3.1
 nrn-patch==3.0.0b0
-nrn-glia
+nrn-glia==0.3.8
 numpy
