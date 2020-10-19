@@ -26,7 +26,7 @@ setuptools.setup(
      ],
      install_requires=[
         "nrn-glia>=0.3.1",
-        "nrn-patch>=2.1.1",
+        "nrn-patch>=3.0.0b0",
         "numpy",
         "errr"
      ],
