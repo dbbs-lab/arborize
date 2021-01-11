@@ -37,8 +37,6 @@ autodoc_mock_imports = [
     "patch",
     "mpi4py",
     "mpi4py.MPI",
-    "dbbs_models",
-    "arborize",
     "rtree",
     "rtree.index",
     "h5py",
