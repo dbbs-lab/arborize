@@ -21,7 +21,7 @@ copyright = '2020, Robin De Schepper'
 author = 'Robin De Schepper'
 
 init_file = os.path.join(os.path.dirname(__file__), "..", "..", "arborize", "__init__.py")
-with open(bsb_init_file, "r") as f:
+with open(init_file, "r") as f:
     for line in f:
         if "__version__ = " in line:
             exec(line.strip())
