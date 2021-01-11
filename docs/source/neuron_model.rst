@@ -130,11 +130,10 @@ In lieu of actual documentation, here's an example:
       labels = {
           "basal_dendrites": {
               "from": "dendrites",
-              "id": lambda id: id >= 0 and id <= 3 or id >= 16 and id <= 17 or id >= 33 and id <= 41 or id == 84 or id >= 105 and id <= 150
-          },
+              "diam": lambda d: d > 1.6
           "apical_dendrites": {
               "from": "dendrites",
-              "id": lambda id: id >= 4 and id <= 15 or id >= 18 and id <= 32 or id >= 42 and id <= 83 or id >= 85 and id <= 104
+              "diam": lambda d: d <= 1.6
           },
           "axon_initial_segment": {
               "from": "axon",
