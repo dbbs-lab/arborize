@@ -24,6 +24,23 @@ author = 'Robin De Schepper'
 # The full version, including alpha/beta/rc tags
 release = arborize.__version__
 
+autodoc_mock_imports = [
+    "glia",
+    "patch",
+    "mpi4py",
+    "mpi4py.MPI",
+    "dbbs_models",
+    "arborize",
+    "rtree",
+    "rtree.index",
+    "h5py",
+    "joblib",
+    "numpy",
+    "sklearn",
+    "scipy",
+    "six",
+    "plotly",
+]
 
 # -- General configuration ---------------------------------------------------
 
