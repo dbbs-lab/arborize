@@ -225,17 +225,19 @@ class NeuronModel:
                 # Use Glia to resolve the mechanism selection.
                 if isinstance(mechanism, tuple):
                     # Mechanism defined as: `(mech_name, mech_variant [, package])`
-                    select = {"variant": mechanism[1]}
+                    name = mechanism[0]
+                    variant = mechanism[1]
+                    select = {"variant": variant}
                     if len(mechanism) == 3:
                         select["pkg"] = mechanism[2]
-                    mechanism = mechanism[0]
-                    mod_name = g.resolve(mechanism, **select)
+                    mod_name = g.resolve(name, **select)
                 else:
                     # Mechanism defined as string
-                    mechanism_variant = "0"
+                    name = mechanism
+                    variant = "0"
                     mod_name = g.resolve(mechanism)
             except glia.exceptions.NoMatchesError as e:
-                e = MechanismNotFoundError("Could not find '{}.{}' in the glia library".format(mechanism, mechanism_variant), mechanism, mechanism_variant, "fee", "fi", "fo")
+                e = MechanismNotFoundError("Could not find '{}.{}' in the glia library".format(name, variant), name, variant)
                 raise e from None
             # Map the mechanism to the mod name
             section._arbz_resolved_mechanisms[mechanism] = mod_name
@@ -254,10 +256,11 @@ class NeuronModel:
                 # the segments and setting `mechanism.attribute` for each
                 mechanism = attribute[1]
                 mechanism_notice = " specified for '{}'".format(mechanism)
-                if not mechanism in section._arbz_resolved_mechanisms:
+                # Check if we can unambiguously find a match for the specified mech
+                mod = _try_mech_presence(mechanism, section._arbz_resolved_mechanisms)
+                if not mod:
                     raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism), mechanism) from None
-                mechanism_mod = section._arbz_resolved_mechanisms[mechanism]
-                attribute_name = attribute[0] + "_" + mechanism_mod
+                attribute_name = attribute[0] + "_" + mod
             else:
                 # `attribute` is an attribute of the section and is defined as string
                 attribute_name = attribute
@@ -412,6 +415,18 @@ class NeuronModel:
     @classmethod
     def make_builder(cls, morphology, path=None):
         return make_builder(morphology, path=path or cls.morphology_directory)
+
+def _try_mech_presence(mech, resolved):
+    # Look for a full match, this also covers the
+    if mech in resolved:
+        return resolved[mech]
+    # Look for a name only match to a mod specified as a tuple
+    specifics = [v for m, v in resolved.items() if isinstance(m, tuple) and m[0] == mech]
+    if len(specifics) == 1:
+        return specifics[0]
+    elif len(specifics) > 1:
+        raise SectionAttributeError(f"Section attributes were specified for `{mech}` but this could apply to: " + ", ".join(specifics))
+
 
 def get_section_receivers(section, types=None):
     """
