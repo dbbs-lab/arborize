@@ -339,7 +339,10 @@ class NeuronModel:
             :param gid: The global identifier of this transmitter. With this number receivers can subscribe to this transmitter's SpikeEvents
         """
         if not hasattr(section, "_transmitter"):
-            section._transmitter = p.ParallelCon(section, gid, output=True)
+            section._transmitter = {
+                "gid": gid,
+                "connector": p.ParallelCon(section, gid, output=True),
+            }
         return section._transmitter
 
     def create_receiver(self, section, gid, synapse_type):
