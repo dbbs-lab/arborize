@@ -1,4 +1,5 @@
 import glia as g
+from patch import p
 
 class Synapse:
 
@@ -19,3 +20,6 @@ class Synapse:
 
     def stimulate(self, *args, **kwargs):
         return self._point_process.stimulate(*args, **kwargs)
+
+    def record(self):
+        return p.record(self._point_process._ref_i)
