@@ -116,7 +116,8 @@ class NeuronModel:
             self._prep_section(section)
 
     def _prep_section(self, section):
-        section.synapses = []
+        section._synapses = []
+        section.synapses = section._synapses
 
     def __init_subclass__(cls, abstract=False, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -318,7 +319,7 @@ class NeuronModel:
         '''
 
         synapse = self.create_synapse(to_section, synapse_type=synapse_type)
-        to_section.synapses.append(synapse)
+        to_section._synapses.append(synapse)
         from_section.connect_points(synapse._point_process)
         return synapse
 
