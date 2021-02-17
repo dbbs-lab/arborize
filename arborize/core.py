@@ -330,7 +330,7 @@ class NeuronModel:
         self.Vm = self.soma[0].record()
         return self.Vm
 
-    def create_transmitter(self, section, gid):
+    def create_transmitter(self, section, gid, source_var=None):
         """
             Create a parallel simulation spike transmitter on a section of this cell.
             Transmitters fire spikes when the treshold reaches -20mV and broadcast a
@@ -344,6 +344,9 @@ class NeuronModel:
                 "gid": gid,
                 "connector": p.ParallelCon(section, gid, output=True),
             }
+        if source_var is not None and "source" not in section._transmitter:
+            p.parallel.source_var(section(0.5)._ref_v, gid, sec=section.__neuron__())
+            section._transmitter["source"] = section(0.5)._ref_v
         return section._transmitter
 
     def create_receiver(self, section, gid, synapse_type):
@@ -360,15 +363,19 @@ class NeuronModel:
         if not hasattr(section, "_receivers"):
             section._receivers = []
         synapse = self.create_synapse(section, synapse_type)
-        parallel_con = p.ParallelCon(gid, synapse._point_process)
         receiver_dict = {
             "type": synapse_type,
             "synapse": synapse,
-            "receiver": parallel_con,
             "gid": gid
         }
+        if synapse.source is not None:
+            p.parallel.target_var(getattr(synapse._point_process, "_ref_" + synapse.source), gid)
+            receiver_dict["source"] = synapse.source
+        else:
+            parallel_con = p.ParallelCon(gid, synapse._point_process)
+            receiver_dict["receiver"] = parallel_con
         section._receivers.append(receiver_dict)
-        return parallel_con
+        return receiver_dict
 
     def create_synapse(self, section, synapse_type=None):
         '''
@@ -410,7 +417,8 @@ class NeuronModel:
         if isinstance(synapse_point_process, tuple):
             synapse_variant = synapse_point_process[1]
             synapse_point_process = synapse_point_process[0]
-        synapse = Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant, type=synapse_type)
+        source = synapse_definition.get("source", None)
+        synapse = Synapse(self, section, synapse_point_process, synapse_attributes, variant=synapse_variant, type=synapse_type, source=source)
         if not hasattr(section, "_synapses"):
             section._synapses = []
         section._synapses.append(synapse)
