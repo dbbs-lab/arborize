@@ -144,6 +144,8 @@ class NeuronModel:
     def __getattr__(self, attribute):
         if attribute == "Vm":
             raise NotRecordingError("Trying to read Vm of a cell that is not recording." + " Use `.record_soma()` to enable recording of the soma.")
+        if attribute in self.section_types:
+            return [s for s in self.sections if attribute in s.labels]
 
     @classmethod
     def _import_morphologies(cls):
