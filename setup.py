@@ -27,6 +27,8 @@ setuptools.setup(
      install_requires=[
         "nrn-glia>=0.3.8",
         "nrn-patch>=3.0.0b1",
+        "ndsb",
+        "nrn-subprocess",
         "numpy",
         "errr"
      ],
