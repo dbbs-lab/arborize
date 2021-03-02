@@ -1,13 +1,4 @@
 class TestProtocol:
-    def _wrap_prepare(f):
-        pass
-
-    def _wrap_run(f):
-        pass
-
-    def _wrap_results(f):
-        pass
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         abstracts = ["prepare", "run", "results"]
