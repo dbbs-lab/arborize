@@ -15,7 +15,7 @@ class TestProtocol:
         if missing:
             raise RuntimeError(f"Can't instantiate `{cls.__name__}` with abstract methods " + ",".join(f"`{m}`" for m in missing))
 
-    def __call__(self):
-        self.prepare()
+    def __call__(self, test):
+        self.prepare(test.setup)
         self.run()
-        return self.results()
+        return self.results(test)

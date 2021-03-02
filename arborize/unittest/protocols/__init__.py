@@ -1,9 +1,17 @@
 from ._protocol import TestProtocol
 from patch import p
+from .. import Results
+from .._helpers import ezfel
 
 class Autorhythm(TestProtocol):
-    def prepare(self):
-        def init_simulator(dt=0.025, celsius=32, tstop=1000, v_init=-70):
+    def __init__(self, dur=300, skip=0, *, freq=None):
+        super().__init__()
+        self.freq = freq
+        self.skip = skip
+        self.duration = dur
+
+    def prepare(self, setup):
+        def init_simulator(dt=0.025, celsius=32, tstop=self.duration, v_init=-70):
             for k, v in vars().items():
                 setattr(p, k, v)
 
@@ -14,26 +22,37 @@ class Autorhythm(TestProtocol):
         init_simulator()
         disable_cvode()
 
-        # for chief in self.setup.chiefs:
-        self._vm = cell.record_soma()
         self._time = p.time
+        for name, subject in setup.subjects.items():
+            subject.record_soma()
 
     def run(self):
         p.finitialize()
         p.run()
 
-    def results(self):
-        # e = ezfel(T=list(_time), signal=list(_vm))
-        #
-        # # Create a build artifact
-        # VoltageTrace(
-        #     cell,
-        #     "Autorhythm",
-        #     _time,
-        #     _vm,
-        #     duration=duration,
-        #     frequency=list(e.inv_second_ISI),
-        # )
-        #
-        # return e
-        return list(self._vm), list(self._t)
+    def results(self, test):
+        results = Results()
+        for name, subject in test.setup.subjects.items():
+            t = list(self._time)
+            first_sample = 0
+            for x, tx in enumerate(t):
+                first_sample = x
+                if tx >= self.skip:
+                    break
+            t, Vm = t[first_sample:], list(subject.Vm)[first_sample:]
+            e = ezfel(T=t, signal=Vm)
+            # Create a build artifact
+            # VoltageTrace(
+            #     cell,
+            #     "Autorhythm",
+            #     self._time,
+            #     subject.Vm,
+            #     duration=duration,
+            #     frequency=list(e.inv_second_ISI),
+            # )
+            results.set(e, name=f"{name}.vm")
+            import plotly.graph_objs as go
+
+            go.Figure(go.Scatter(x=t, y=Vm)).show()
+            test.assertAlmostEqual(self.freq, 1000 * e.Spikecount[0]  / (t[-1] - t[0]))
+        return results
