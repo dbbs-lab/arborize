@@ -6,4 +6,6 @@ class SingleCell(TestSetup):
         self._model = model
 
     def setup(self, test):
-        self.register_subject("main", self._model())
+        m = self._model()
+        m.record_soma()
+        self.register_subject("main", m)
