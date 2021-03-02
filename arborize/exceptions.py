@@ -16,5 +16,6 @@ _make_tree(globals(),
             ),
             MorphologyBuilderError=_e(),
         ),
+        NotRecordingError=_e(),
     ),
 )
