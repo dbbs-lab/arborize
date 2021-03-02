@@ -11,16 +11,8 @@ class Autorhythm(TestProtocol):
         self.duration = dur
 
     def prepare(self, setup):
-        def init_simulator(dt=0.025, celsius=32, tstop=300, v_init=-70):
-            for k, v in vars().items():
-                setattr(p, k, v)
-
-        def disable_cvode():
-            time_step = p.CVode()
-            time_step.active(0)
-
-        init_simulator(tstop=self.duration)
-        disable_cvode()
+        setup.init_simulator(tstop=self.duration)
+        setup.disable_cvode()
 
         self._time = p.time
         for name, subject in setup.subjects.items():
