@@ -1,3 +1,5 @@
+from patch import p
+
 class TestSetup:
     def __init__(self):
         self._cells = []
@@ -32,3 +34,11 @@ class TestSetup:
 
     def register_cell(self, cell):
         self._cells.append(cell)
+
+    def init_simulator(self, dt=0.025, celsius=32, tstop=300, v_init=-70):
+        for k, v in vars().items():
+            setattr(p, k, v)
+
+    def disable_cvode(self):
+        time_step = p.CVode()
+        time_step.active(0)
