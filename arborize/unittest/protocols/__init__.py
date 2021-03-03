@@ -115,13 +115,6 @@ class VoltageClamp(TestProtocol):
             results.set(f"{name}.i", i)
             results.set(f"{name}.di", di)
             results.set(f"{name}.g", g)
-            import plotly.graph_objs as go
-            fig =go.Figure([
-                go.Scatter(x=[t[t_prerec], t[t_rec]], y=[i_pre, i_rec], mode="markers"),
-                go.Scatter(x=t, y=i)
-            ])
-            fig.show()
-            results.set("fig", fig)
         return results
 
     def asserts(self, test, results):
