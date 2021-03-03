@@ -43,13 +43,13 @@ class Results:
     def __init__(self, primary=None):
         self._results = {}
         if primary is not None:
-            self.set(primary)
+            self.set("primary", primary)
 
-    def set(self, result, name="primary"):
+    def set(self, name, result):
         self._results[name] = result
 
-    def get(self, name="primary"):
+    def get(self, name):
         return self._results.get(name, None)
 
-    def set_cell_result(self, cell, result, name="primary"):
-        self.set(result, name=get_cell_name(cell, unique=True) + "." + name)
+    def set_cell_result(self, cell, name, result):
+        self.set(get_cell_name(cell, unique=True) + "." + name, result)
