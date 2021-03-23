@@ -28,7 +28,7 @@ setuptools.setup(
         "nrn-glia>=0.3.8",
         "nrn-patch>=3.0.0b1",
         "ndsb",
-        "nrn-subprocess",
+        "nrn-subprocess>=1.3.2",
         "efel",
         "numpy",
         "errr"
