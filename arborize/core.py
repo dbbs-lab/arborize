@@ -437,7 +437,7 @@ class NeuronModel:
         _cc_insert_labels(labels, getattr(cls, "labels", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
         decor = arbor.decor()
-        decor.set_property(Vm=-40)
+        decor.set_property(Vm=-40, tempK=305.15)
         for label, definition in composites.items():
             _cc_all(
                 decor,
