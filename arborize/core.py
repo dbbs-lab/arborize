@@ -1,3 +1,5 @@
+__all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers", "make_builder", "compose_types"]
+
 import os, sys, errr
 from contextlib import contextmanager
 from .exceptions import *
@@ -197,7 +199,6 @@ class NeuronModel:
         # Set the amount of sections to some standard odd amount
         section.nseg = 1 + (2 * int(section.L / 40))
         # Store a map of mechanisms to full mod_names for the attribute setter
-        section._arbz_resolved_mechanisms = {}
         for label in section.labels:
             if label not in self.__class__.section_types:
                 raise LabelNotDefinedError("Label '{}' given to a section but not defined in {}".format(
@@ -205,25 +206,20 @@ class NeuronModel:
                     self.__class__.__name__
                 ))
             self._init_section_label(section, label)
-        del section._arbz_resolved_mechanisms
 
     def _init_section_label(self, section, label):
         definition = self.__class__.section_types[label]
-        skipped_mechs = True
-        if "mechanisms" in definition:
-            self._apply_section_mechanisms(section, definition["mechanisms"])
-            skipped_mechs = False
-        if "attributes" in definition:
-            try:
-                self._apply_section_attributes(section, definition["attributes"])
-            except SectionAttributeError as e:
-                errr.wrap(SectionAttributeError, e, prepend="No mechanisms were inserted! ")
-        if "synapses" in definition:
-            self._apply_section_synapses(section, definition["synapses"])
+        if isinstance(definition, CompositeType):
+            # Ignore CompositeType, in NEURON we can overpaint to compose.
+            definition = definition._self
+        self._apply_section_cable(section, definition.get("cable", {}))
+        self._apply_section_mechanisms(section, definition.get("mechanisms", {}))
+        self._apply_section_ions(section, definition.get("ions", {}))
+        self._apply_section_synapses(section, definition.get("synapses", []))
 
     def _apply_section_mechanisms(self, section, mechanisms):
         # Insert the mechanisms
-        for mechanism in mechanisms:
+        for mechanism, attrs in mechanisms.items():
             try:
                 # Use Glia to resolve the mechanism selection.
                 if isinstance(mechanism, tuple):
@@ -242,46 +238,43 @@ class NeuronModel:
             except glia.exceptions.NoMatchesError as e:
                 e = MechanismNotFoundError("Could not find '{}.{}' in the glia library".format(name, variant), name, variant)
                 raise e from None
-            # Map the mechanism to the mod name
-            section._arbz_resolved_mechanisms[mechanism] = mod_name
             # Use Glia to insert the resolved mod.
             g.insert(section, mod_name)
+            try:
+                self._apply_mech_attributes(section, mod_name, attrs or {})
+            except SectionAttributeError as e:
+                errr.wrap(SectionAttributeError, e, prepend="No mechanisms were inserted! ")
 
-    def _apply_section_attributes(self, section, attributes):
+    def _apply_mech_attributes(self, section, mod_name, attributes):
         # Set the attributes on this section and its mechanisms
         for attribute, value in attributes.items():
-            mechanism_notice = ""
-            if isinstance(attribute, tuple):
-                # `attribute` is an attribute of a specific mechanism and defined
-                # as `(attribute, mechanism)`. This makes use of the fact that
-                # NEURON provides shorthands to a mechanism's attribute as
-                # `attribute_mechanism` instead of having to iterate over all
-                # the segments and setting `mechanism.attribute` for each
-                mechanism = attribute[1]
-                mechanism_notice = " specified for '{}'".format(mechanism)
-                # Check if we can unambiguously find a match for the specified mech
-                mod = _try_mech_presence(mechanism, section._arbz_resolved_mechanisms)
-                if not mod:
-                    raise MechanismNotPresentError("The attribute " + repr(attribute) + " specifies a mechanism '{}' that was not inserted in this section.".format(mechanism), mechanism) from None
-                attribute_name = attribute[0] + "_" + mod
-            else:
-                # `attribute` is an attribute of the section and is defined as string
-                attribute_name = attribute
             # Check whether the value is callable, if so, pass it the section diameter
             # and update the local variable to the return value. This allows parameters to
             # depend on the diameter of the section.
             if callable(value):
                 value = value(section.diam)
-            # Use setattr to set the obtained attribute information. __dict__
-            # does not work as NEURON's Python interface is incomplete.
             try:
-                setattr(section.__neuron__(), attribute_name, value)
+                setattr(section.__neuron__(), f"{attribute}_{mod_name}", value)
             except AttributeError as e:
                 raise SectionAttributeError("The attribute '{}'{} is not found on a section with labels {}.".format(
-                    attribute_name,
-                    mechanism_notice,
+                    attribute,
+                    f"specified for {mod_name} ",
                     ", ".join("'{}'".format(l) for l in section.labels)
                 ), attribute, section.labels) from None
+
+    def _apply_section_cable(self, section, cable):
+        for cable_prop, value in cable.items():
+            setattr(section.__neuron__(), cable_prop, value)
+
+    def _apply_section_ions(self, section, ions):
+        prop = {"e": "e{}", "int": "{}i", "ext": "{}e"}
+        for ion_name, ion_props in ions.items():
+            for prop_name, value in ion_props.items():
+                try:
+                    prop_attr = prop[prop_name].format(ion_name)
+                except KeyError as e:
+                    raise IonAttributeError(f"Unknown ion attribute '{prop_name}'.") from None
+                setattr(section.__neuron__(), prop_attr, value)
 
     def _apply_section_synapses(self, section, synapses):
         if not hasattr(section, "available_synapse_types"):
@@ -430,6 +423,30 @@ class NeuronModel:
     def make_builder(cls, morphology, path=None):
         return make_builder(morphology, path=path or cls.morphology_directory)
 
+    @classmethod
+    def cable_cell(cls, morphology=0):
+        try:
+            import arbor
+        except ImportError:
+            raise ImportError("`arbor` unavailable, can't make arbor models.")
+
+        if not isinstance(cls.morphologies[morphology], str):
+            raise NotImplementedError("Can't use builders for cable cells, must import from file. Please export your morphology builder to an SWC or ASC file and update `cls.morphologies`.")
+        path = os.path.join(cls.morphology_directory, cls.morphologies[morphology])
+        morph, labels = _try_arb_morpho(path)
+        _cc_insert_labels(labels, getattr(cls, "labels", {}))
+        composites = _arb_resolve_composites(cls.section_types, labels)
+        decor = arbor.decor()
+        decor.set_property(Vm=-40)
+        for label, definition in composites.items():
+            _cc_all(
+                decor,
+                label,
+                definition
+            )
+        return arbor.cable_cell(morph, labels, decor)
+
+
 def _try_mech_presence(mech, resolved):
     # Look for a full match, this also covers the
     if mech in resolved:
@@ -440,6 +457,142 @@ def _try_mech_presence(mech, resolved):
         return specifics[0]
     elif len(specifics) > 1:
         raise SectionAttributeError(f"Section attributes were specified for `{mech}` but this could apply to: " + ", ".join(specifics))
+
+def _try_arb_morpho(path):
+    import arbor
+    try:
+        morfo = arbor.load_swc_arbor(path)
+        labels = arbor.label_dict({})
+    except:
+        try:
+            m = arbor.load_asc(path)
+        except:
+            raise IOError(f"Can't load '{path}' as an SWC or ASC morphology.")
+        morfo, labels = m.morphology, m.labels
+    return morfo, labels
+
+
+def _cc_all(decor, label, definition):
+    _cc_insert_cable(decor, label, definition.get("cable", {}))
+    _cc_insert_ions(decor, label, definition.get("ions", {}))
+    _cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
+    # _cc_insert_synapses(decor, label, definition.get("synapses", []))
+
+allowlist = ("Km", "Leak", "Nav1_6", "Cav3_2", "Cav3_3", "Nav1_1", "Kca1_1", "Kv1_5",
+"Kir2_3", "Kv1_1", "Kv3_4", "Kv4_3", "Kca2_2", "Cav2_1", "HCN1", "cdp5", "cdp5_CR",
+"Ca", "Kv2_2", "Na_granule_cell", "Na_granule_cell_FHF", "Cav3_1", "Kca2_2", "Kca3_1")
+
+# Kv1_5: uses 'no' ion
+
+def _cc_insert_mechs(decor, label, mechs):
+    import arbor
+    i = 0
+    for mech_name, mech_attrs in mechs.items():
+        if isinstance(mech_name, tuple):
+            mech_name = "_".join(mech_name)
+        if mech_name not in allowlist:
+            continue
+        mech = arbor.mechanism(mech_name, mech_attrs or {})
+        decor.paint(f'"{label}"', mech)
+        i += 1
+
+
+def _arb_resolve_composites(definitions, label_dict):
+    # For each conp, copy the parent definitions, then empty the parents and
+    # create virtual intersections that exclude the child composites to
+    # avoid overpainting
+    resolved = {t: v for t, v in definitions.items() if isinstance(v, dict)}
+    comps = {t: v for t, v in definitions.items() if t not in resolved}
+    parents = {}
+    for name, comp in comps.items():
+        try:
+            comp._parents = l = []
+            for p in comp._parent_types:
+                l.append(resolved[p].copy())
+        except KeyError:
+            if p in comps:
+                raise NotImplementedError("Can't make composites of composites yet.")
+            raise Exception(f"Unknown section type '{p}' in composite type '{name}'.") from None
+        for parent in comp._parent_types:
+            parents.setdefault(parent, []).append(name)
+
+    for parent, children in parents.items():
+        # The original parent shouldn't paint anything, we make a new parent
+        # with all of the children regions excluded that does the restricted
+        # painting.
+        virtual = f"{parent}(excl:{','.join(children)})"
+        resolved[virtual] = resolved[parent]
+        cstr = " ".join(f'(region "{c}")' for c in children)
+        if len(children) > 1:
+            cstr = f"(join {cstr})"
+        label_dict[virtual] = f'(difference (region "{parent}") {cstr})'
+        resolved[parent] = {}
+
+    # Merge the parent types and the child on top.
+    for name, comp in comps.items():
+        resolved[name] = _cc_def_merge(*comp._parents, comp._self)
+
+    return resolved
+
+
+def _cc_def_merge(*dicts):
+    carry = dict()
+    merger = iter(dicts)
+    while (m := next(merger, None)) is not None:
+        carry = _deep_merge(carry, m)
+    return carry
+
+def _deep_merge(a, b):
+    if isinstance(a, dict):
+        c = a.copy()
+        for k, v in b.items():
+            if k in a:
+                c[k] = _deep_merge(a[k], v)
+            elif hasattr(v, "copy"):
+                c[k] = v.copy()
+            else:
+                c[k] = v
+    elif isinstance(a, list):
+        c = list(set(a) + set(b))
+    else:
+        if hasattr(b, "copy"):
+            c = b.copy()
+        else:
+            c = b
+    return c
+
+def _cc_insert_labels(label_dict, labels):
+    # ASC parser returns broken label_dict, so don't use `in` until
+    # https://github.com/arbor-sim/arbor/pull/1541 is merged.
+    # if "dendrites" not in label_dict and "dend" in label_dict:
+    try:
+        label_dict["dendrites"] = '(region "dend")'
+    except (RuntimeError, KeyError):
+        # KeyErrors thrown as RuntimeError, see
+        # https://github.com/arbor-sim/arbor/issues/1550
+        pass
+    for label, def_ in labels.items():
+        if "arbor" in def_:
+            label_dict[label] = def_["arbor"]
+
+
+_cc_ion_prop_map = {
+    "e": "rev_pot"
+}
+_cc_cable_prop_map = {
+    "Ra": ("rL", lambda Ra: Ra), "cm": ("cm", lambda cm: cm / 100),
+}
+
+
+def _cc_insert_ions(decor, label, ions):
+    for ion, def_ in ions.items():
+        kwargs = {_cc_ion_prop_map.get(d): v for d, v in def_.items()}
+        decor.set_ion(ion, **kwargs)
+
+
+def _cc_insert_cable(decor, label, cable):
+    kwargs = {(p := _cc_cable_prop_map.get(c))[0]: p[1](v) for c, v in cable.items()}
+    decor.paint(f'(region "{label}")', **kwargs)
 
 
 def get_section_receivers(section, types=None):
@@ -487,12 +640,19 @@ def _suppress_stdout():
 def _import3d_load(morphology):
     if not os.path.isfile(morphology):
         raise FileNotFoundError(f"'{morphology}' can't be found. Provide a correct absolute path in the `morphologies` array or add a `morphology_directory` class attribute to your NeuronModel.")
-    loader = p.Import3d_Neurolucida3()
     with _suppress_stdout():
-        loader.input(morphology)
-    loaded_morphology = p.Import3d_GUI(loader, 0)
+        # Can't EAFP due to https://github.com/neuronsimulator/nrn/issues/1311
+        # so we check the extension and hope it matches the content format.
+        if morphology.endswith("swc"):
+            loader = p.Import3d_SWC_read()
+        else:
+            loader = p.Import3d_Neurolucida3()
+        try:
+            loader.input(morphology)
+            loaded_morphology = p.Import3d_GUI(loader, 0)
+        except RuntimeError as e:
+            raise MorphologyBuilderError(f"Couldn't parse '{morphology}': {e}") from None
     return loaded_morphology
-    raise FileNotFoundError("Can't find '{}', use arborize.add_directory to add a morphology directory.".format(morphology))
 
 def import3d(file, model):
     """
@@ -527,4 +687,14 @@ def make_builder(blueprint, path=None):
     else:
         raise MorphologyBuilderError("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
 
-__all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers"]
+
+class CompositeType:
+    def __init__(self, *types):
+        self._parent_types = [t for t in types if isinstance(t, str)]
+        try:
+            self._self = [t for t in types if isinstance(t, dict)][0].copy()
+        except IndexError:
+            self._self = {}
+
+def compose_types(*args):
+    return CompositeType(*args)
