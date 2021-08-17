@@ -181,6 +181,9 @@ class NeuronModel:
         # Apply special labels
         if hasattr(self.__class__, "labels"):
             for label, category in self.__class__.labels.items():
+                if not "from" in category:
+                    # Arbor only label, don't process for NEURON
+                    continue
                 targets = self.__dict__[category["from"]]
                 if "id" in category:
                     l = category["id"]
