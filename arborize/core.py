@@ -6,7 +6,7 @@ from .exceptions import *
 import numpy as np
 
 if not os.getenv('READTHEDOCS'):
-    from patch import p
+    from patch import p, transform
     from patch.objects import Section
     import glia as g
     from .synapse import Synapse
@@ -90,7 +90,15 @@ class NeuronModel:
         morphology_loader.instantiate(self)
         self._wrap_sections()
         self._collect_sections()
+        self._apply_base_labels()
 
+        # Check builder metadata for additional instructions and strip it.
+        builder_meta = getattr(self, "builder_meta", None)
+        if builder_meta is not None:
+            delattr(self, "builder_meta")
+            if "taglist" in builder_meta:
+                translations = getattr(type(self), "tag_translations", {})
+                self._translate_tags(translations, builder_meta["taglist"])
         # Do labelling of sections into special sections
         self._apply_labels()
 
@@ -106,14 +114,19 @@ class NeuronModel:
 
     def _wrap_sections(self):
         # Wrap the neuron sections in our own Section, if not done by the Builder
-        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in (self.soma or [])]
-        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in (self.dend or [])]
-        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in (self.axon or [])]
+        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "soma", [])]
+        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "dend", [])]
+        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "axon", [])]
 
     def _collect_sections(self):
         self.dendrites = self.dend + self.dendrites
         del self.dend
         self.sections = self.soma + self.dendrites + self.axon
+        # Unwrap back into a set of neuron sections to check identity
+        nrnsec = set(map(transform, self.sections))
+        l = len(self.sections)
+        self.sections.extend(Section(p, s) for s in self.all if s not in nrnsec)
+        self._nrn_section_map = dict(zip(map(transform, self.sections), self.sections))
         for section in self.sections:
             self._prep_section(section)
 
@@ -168,7 +181,8 @@ class NeuronModel:
         except:
             return os.getcwd()
 
-    def _apply_labels(self):
+    def _apply_base_labels(self):
+        """Add the `soma`, `dendrites` and `axon` labels"""
         for section in self.sections:
             if not hasattr(section, "labels"):
                 section.labels = []
@@ -179,13 +193,17 @@ class NeuronModel:
         for section in self.axon:
             section.labels.insert(0, "axon")
 
-        # Apply special labels
+    def _apply_labels(self):
+        """Apply special labels according to `diam`, `id` or `tag` rules."""
         if hasattr(self.__class__, "labels"):
             for label, category in self.__class__.labels.items():
-                if not "from" in category:
-                    # Arbor only label, don't process for NEURON
-                    continue
-                targets = self.__dict__[category["from"]]
+                parent = category.get("from", "sections")
+                try:
+                    targets = getattr(self, parent)
+                except AttributeError:
+                    raise LabelNotDefinedError(
+                        f"`{label}` can't find category parent `{parent}`"
+                    ) from None
                 if "id" in category:
                     l = category["id"]
                     for id, target in enumerate(targets):
@@ -196,6 +214,21 @@ class NeuronModel:
                     for id, target in enumerate(targets):
                         if l(target.diam):
                             target.labels.append(label)
+                elif "tag" in category:
+                    pass
+
+
+    def _translate_tags(self, translations, tags):
+        """
+        Translate builder provided metadata into additional labels using a
+        translation list from the model class. e.g. translating SWC tags into
+        multiple labels.
+        """
+        for i, section in enumerate(map(self._nrn_section_map.get, self.all)):
+            tag = tags[i]
+            print("Sec", section.name(), tag)
+            labels = translations.get(tag, [])
+            section.labels.extend(labels)
 
 
     def _init_section(self, section):
@@ -639,6 +672,8 @@ def _import3d_load(morphology):
     if not os.path.isfile(morphology):
         raise FileNotFoundError(f"'{morphology}' can't be found. Provide a correct absolute path in the `morphologies` array or add a `morphology_directory` class attribute to your NeuronModel.")
     with _suppress_stdout():
+        # Placeholder for the exact SWC tags
+        sec2tag = None
         # Can't EAFP due to https://github.com/neuronsimulator/nrn/issues/1311
         # so we check the extension and hope it matches the content format.
         if morphology.endswith("swc"):
@@ -648,16 +683,22 @@ def _import3d_load(morphology):
         try:
             loader.input(morphology)
             loaded_morphology = p.Import3d_GUI(loader, 0)
+            try:
+                ids = list(loader.id)
+            except:
+                pass
+            else:
+                # Scrape NEURON internals for the exact SWC tag on each section
+                ids = list(loader.id)
+                pts = list(loader.id2pt(id) for id in ids)
+                tags = list(loader.type.x)
+                sec2tag = dict()
+                for pt, tag in zip(map(int, pts), tags):
+                    sec = loader.point2sec[pt]
+                    sec2tag.setdefault(sec, tag)
         except RuntimeError as e:
             raise MorphologyBuilderError(f"Couldn't parse '{morphology}': {e}") from None
-    return loaded_morphology
-
-def import3d(file, model):
-    """
-        Perform NEURON's Import3D and import ``file`` 3D data into the model.
-    """
-    loaded_morphology = NeuronModel._import3d_load(file)
-    loaded_morphology.instantiate(model)
+    return loaded_morphology, sec2tag
 
 
 def make_builder(blueprint, path=None):
@@ -672,7 +713,14 @@ def make_builder(blueprint, path=None):
             else:
                 blueprint = os.path.join(path, blueprint)
         # Use Import3D as builder
-        return _import3d_load(blueprint)
+        builder, tags = _import3d_load(blueprint)
+        if tags is not None:
+            def set_meta(model):
+                model.builder_meta = m = getattr(model, "builder_meta", dict())
+                m.setdefault("taglist", dict()).update(tags)
+
+            builder = ComboBuilder(builder.instantiate, set_meta)
+        return builder
     if callable(blueprint):
         # If a function is given as morphology, treat it as a builder function
         return Builder(blueprint)
