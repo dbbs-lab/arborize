@@ -427,7 +427,7 @@ class NeuronModel:
         return make_builder(morphology, path=path or cls.morphology_directory)
 
     @classmethod
-    def cable_cell(cls, morphology=0):
+    def cable_cell(cls, morphology=0, Vm=-40, K=305.15):
         try:
             import arbor
         except ImportError:
@@ -440,7 +440,7 @@ class NeuronModel:
         _cc_insert_labels(labels, getattr(cls, "labels", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
         decor = arbor.decor()
-        decor.set_property(Vm=-40, tempK=305.15)
+        decor.set_property(Vm=Vm, tempK=K)
         for label, definition in composites.items():
             _cc_all(
                 decor,
@@ -481,10 +481,6 @@ def _cc_all(decor, label, definition):
     _cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
     # _cc_insert_synapses(decor, label, definition.get("synapses", []))
 
-allowlist = ("Km", "Leak", "Nav1_6", "Cav3_2", "Cav3_3", "Nav1_1", "Kca1_1", "Kv1_5",
-"Kir2_3", "Kv1_1", "Kv3_4", "Kv4_3", "Kca2_2", "Cav2_1", "HCN1", "cdp5", "cdp5_CR",
-"Ca", "Kv2_2", "Na_granule_cell", "Na_granule_cell_FHF", "Cav3_1", "Kca2_2", "Kca3_1")
-
 # Kv1_5: uses 'no' ion
 
 def _cc_insert_mechs(decor, label, mechs):
@@ -493,8 +489,6 @@ def _cc_insert_mechs(decor, label, mechs):
     for mech_name, mech_attrs in mechs.items():
         if isinstance(mech_name, tuple):
             mech_name = "_".join(mech_name)
-        if mech_name not in allowlist:
-            continue
         mech = arbor.mechanism(mech_name, mech_attrs or {})
         decor.paint(f'"{label}"', mech)
         i += 1
