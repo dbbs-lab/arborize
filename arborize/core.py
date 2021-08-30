@@ -699,5 +699,16 @@ class CompositeType:
         except IndexError:
             self._self = {}
 
+    def __copy__(self):
+        return self.copy()
+
+    def copy(self):
+        return CompositeType(*self._parent_types, self._self)
+
 def compose_types(*args):
     return CompositeType(*args)
+
+def flatten_composite(model, comp):
+    if not isinstance(comp, CompositeType):
+        return comp
+    return _cc_def_merge(*map(model.section_types.get, comp._parent_types), comp._self)
