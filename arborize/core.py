@@ -1,4 +1,4 @@
-__all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers", "make_builder", "compose_types"]
+__all__ = ["NeuronModel", "get_section_synapses", "get_section_receivers", "make_builder", "compose_types", "flatten_composite"]
 
 import os, sys, errr
 from contextlib import contextmanager
