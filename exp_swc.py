@@ -7,11 +7,23 @@ gc = mr.get_morphology("PurkinjeCell")
 
 tags = ["soma", "axon", "dendrites"]
 structure_id = dict(zip(tags, (1, 2, 3)))
+ntag = 16
 comp_id = itertools.count()
 
+def get_sid(labels):
+    global ntag
+    label_set = "__".join(sorted(set(labels)))
+    sid = structure_id.get(label_set)
+    if sid is None:
+        structure_id[label_set] = sid = ntag
+        ntag += 1
+    return sid
+
+
 def write_branch(file, branch, connector):
-    sid = structure_id[branch._full_labels[0]]
+    sid = get_sid(branch._full_labels)
     parent = connector
+
     for x, y, z, r in branch.walk():
         id = next(comp_id)
         file.write(" ".join(map(str, (id, sid, x, y, z, r, parent))) + "\n")
