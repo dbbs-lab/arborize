@@ -95,7 +95,7 @@ class NeuronModel:
         self._apply_labels()
 
         # Set up preferred glia context
-        with g.context(pkg=self._package):
+        with g.context(pkg=self.glia_package):
             # Initialize the labelled sections
             # This inserts all mechanisms
             for section in self.sections:
@@ -148,6 +148,7 @@ class NeuronModel:
             raise NotRecordingError("Trying to read Vm of a cell that is not recording." + " Use `.record_soma()` to enable recording of the soma.")
         if attribute in self.section_types:
             return [s for s in self.sections if attribute in s.labels]
+        return super().__getattribute__(attribute)
 
     @classmethod
     def _import_morphologies(cls):
