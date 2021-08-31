@@ -226,7 +226,6 @@ class NeuronModel:
         """
         for i, section in enumerate(map(self._nrn_section_map.get, self.all)):
             tag = tags[i]
-            print("Sec", section.name(), tag)
             labels = translations.get(tag, [])
             section.labels.extend(labels)
 
