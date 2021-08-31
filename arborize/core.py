@@ -441,6 +441,16 @@ class NeuronModel:
         composites = _arb_resolve_composites(cls.section_types, labels)
         decor = arbor.decor()
         decor.set_property(Vm=-40, tempK=305.15)
+
+        #policy = arbor.cv_policy_max_extent(40.0)
+        #for l in labels:
+        #  policy = policy | arbor.cv_policy_max_extent(40.0, f'"{l}"')
+
+        dflt_policy = arbor.cv_policy_max_extent(40.0)
+        soma_policy = arbor.cv_policy_fixed_per_branch(1, '(tag 1)')
+        policy = dflt_policy | soma_policy
+        decor.discretization(policy)
+
         for label, definition in composites.items():
             _cc_all(
                 decor,
@@ -481,9 +491,9 @@ def _cc_all(decor, label, definition):
     _cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
     # _cc_insert_synapses(decor, label, definition.get("synapses", []))
 
-allowlist = ("Km", "Leak", "Nav1_6", "Cav3_2", "Cav3_3", "Nav1_1", "Kca1_1", "Kv1_5",
-"Kir2_3", "Kv1_1", "Kv3_4", "Kv4_3", "Kca2_2", "Cav2_1", "HCN1", "cdp5", "cdp5_CR",
-"Ca", "Kv2_2", "Na_granule_cell", "Na_granule_cell_FHF", "Cav3_1", "Kca2_2", "Kca3_1")
+allowlist = ("Km", "Leak", "Nav1_6", "Cav3_2", "Cav3_3", "Nav1_1", "Kca1_1", "Kv1_5", "HCN1_golgi", "HCN2",
+"Kir2_3", "Kv1_1", "Kv3_4", "Kv4_3", "Kca2_2", "Cav2_1", "HCN1", "cdp5", "cdp5_CR", "cdp5_CAM", "cdp5_CAM_GoC",
+"Ca", "Kv2_2", "Na_granule_cell", "Na_granule_cell_FHF", "Cav3_1", "Cav2_3", "Kca2_2", "Kca3_1", "CaL13", "Leak_GABA", "pas", "Kv3_3")
 
 # Kv1_5: uses 'no' ion
 
@@ -494,6 +504,7 @@ def _cc_insert_mechs(decor, label, mechs):
         if isinstance(mech_name, tuple):
             mech_name = "_".join(mech_name)
         if mech_name not in allowlist:
+            raise Exception("Mechanism not allowed ", mech_name)
             continue
         mech = arbor.mechanism(mech_name, mech_attrs or {})
         decor.paint(f'"{label}"', mech)
