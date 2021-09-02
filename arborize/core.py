@@ -4,6 +4,7 @@ import os, sys, errr
 from contextlib import contextmanager
 from .exceptions import *
 import numpy as np
+import functools
 
 if not os.getenv('READTHEDOCS'):
     from patch import p, transform
@@ -14,42 +15,14 @@ if not os.getenv('READTHEDOCS'):
     p.load_file('stdlib.hoc')
     p.load_file('import3d.hoc')
 
-class Builder:
-    """
-        Builders are method interfaces used to build cell models. They are responsible for
-        adding and/or labelling sections on the model object during initialization.
+# Patch initialization of Sections
+class Section(Section):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.labels = []
+        self._synapses = self.synapses = []
 
-        A builder should define an ``instantiate`` method that is passed the model under
-        construction.
-
-        This base Builder class can be instantiated with a function to which the model
-        under construction is delegated.
-
-        Constructing your own Builders is of limited use, because every model's
-        ``morphologies`` field makes Builders out of functions or morphology files:
-
-        .. code-block:: python
-
-            class MyNeuron(NeuronModel):
-                @staticmethod
-                def build(model, *args, **kwargs):
-                    model.soma.append(p.Section())
-                    model.dendrites.append(p.Section())
-                    model.axon.append(p.Section())
-
-                # Creates 2 different morphologies for this cell model.
-                morphologies = [
-                    build, # Create 1 soma, dendrite & axonal compartment
-                    ('morfo2.swc', self.extend_axon) # First loads morfo2.swc, then run the `extend_axon` method.
-                ]
-    """
-    def __init__(self, builder):
-        self.builder = builder
-
-    def instantiate(self, model, *args, **kwargs):
-        self.builder(model, *args, **kwargs)
-
-class ComboBuilder(Builder):
+class Pipeline:
     """
         Chains together multiple morphology files and/or builder functions.
     """
@@ -62,13 +35,12 @@ class ComboBuilder(Builder):
             :param path: Root path that all non absolute path strings will be combined with.
             :type path: string
         """
-        builder_pipe = [make_builder(part, path=path) for part in pipeline]
-        def outer_builder(model, *args, **kwargs):
-            # Apply all builders in the pipeline sequence in order.
-            for builder in builder_pipe:
-                builder.instantiate(model, *args, **kwargs)
+        self._pipe = [make_builder(part, path=path) for part in pipeline]
 
-        self.builder = outer_builder
+    def __call__(self, model, *args, **kwargs):
+        # Apply all builders in the pipeline sequence in order.
+        for builder in builder_pipe:
+            builder(model, *args, **kwargs)
 
 class NeuronModel:
     """
@@ -80,25 +52,12 @@ class NeuronModel:
         if self.__class__._abstract:
             raise NotImplementedError(f"Can't instantiate abstract NeuronModel {self.__class__.__name__}")
         # Initialize variables
-        self.position = np.array(position if not position is None else [0., 0., 0.])
-        self.dendrites = []
-        self.axon = []
-        self.soma = []
+        self.position = np.array(position if position is not None else [0., 0., 0.])
+        self.sections = []
+        self._nrn_section_map = dict()
 
-        morphology_loader = self.__class__.imported_morphologies[morphology]
-        # Use the Import3D/Builder to instantiate this cell.
-        morphology_loader.instantiate(self)
-        self._wrap_sections()
-        self._collect_sections()
-        self._apply_base_labels()
-
-        # Check builder metadata for additional instructions and strip it.
-        builder_meta = getattr(self, "builder_meta", None)
-        if builder_meta is not None:
-            delattr(self, "builder_meta")
-            if "taglist" in builder_meta:
-                translations = getattr(type(self), "tag_translations", {})
-                self._translate_tags(translations, builder_meta["taglist"])
+        # Construct cell
+        self.get_morphology_builder(morphology)(self)
         # Do labelling of sections into special sections
         self._apply_labels()
 
@@ -109,36 +68,12 @@ class NeuronModel:
             for section in self.sections:
                 self._init_section(section)
 
-        # Call boot method so that child classes can easily do stuff after init.
-        self.boot()
-
-    def _wrap_sections(self):
-        # Wrap the neuron sections in our own Section, if not done by the Builder
-        self.soma = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "soma", [])]
-        self.dend = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "dend", [])]
-        self.axon = [s if isinstance(s, Section) else Section(p, s) for s in getattr(self, "axon", [])]
-
-    def _collect_sections(self):
-        self.dendrites = self.dend + self.dendrites
-        del self.dend
-        self.sections = self.soma + self.dendrites + self.axon
-        # Unwrap back into a set of neuron sections to check identity
-        nrnsec = set(map(transform, self.sections))
-        l = len(self.sections)
-        self.sections.extend(Section(p, s) for s in self.all if s not in nrnsec)
-        self._nrn_section_map = dict(zip(map(transform, self.sections), self.sections))
-        for section in self.sections:
-            self._prep_section(section)
-
-    def _prep_section(self, section):
-        section._synapses = []
-        section.synapses = section._synapses
+        # Call post init method so that child classes can easily do stuff after init.
+        self.__post_init__()
 
     def __init_subclass__(cls, abstract=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls._abstract = abstract
-        if not abstract:
-            cls._init_morphologies()
         if not hasattr(cls, "section_types"):
             cls.section_types = {}
         for default_type in ["soma", "dendrites", "axon"]:
@@ -146,6 +81,11 @@ class NeuronModel:
                 cls.section_types[default_type] = {}
         if not hasattr(cls, "glia_package"):
             cls.glia_package = None
+        translations = getattr(cls, "tag_translations", None)
+        if translations is not None:
+            translations.setdefault(1, ["soma"])
+            translations.setdefault(2, ["axon"])
+            translations.setdefault(3, ["dendrites"])
 
     @classmethod
     def _init_morphologies(cls):
@@ -164,16 +104,13 @@ class NeuronModel:
         return super().__getattribute__(attribute)
 
     @classmethod
-    def _import_morphologies(cls):
-        m_dir = getattr(cls, "morphology_directory", cls._get_default_morphology_dir())
-        cls.morphology_directory = os.path.abspath(m_dir)
-        cls.imported_morphologies = []
-        for morphology in cls.morphologies:
-            builder = cls.make_builder(morphology, path=m_dir)
-            cls.imported_morphologies.append(builder)
+    @functools.cache
+    def get_morphology_builder(cls, index):
+        m_dir = getattr(cls, "morphology_directory", cls._get_morphology_dir())
+        return cls.make_builder(cls.morphologies[index], path=m_dir)
 
     @classmethod
-    def _get_default_morphology_dir(cls):
+    def _get_morphology_dir(cls):
         import os, inspect
 
         try:
@@ -181,22 +118,11 @@ class NeuronModel:
         except:
             return os.getcwd()
 
-    def _apply_base_labels(self):
-        """Add the `soma`, `dendrites` and `axon` labels"""
-        for section in self.sections:
-            if not hasattr(section, "labels"):
-                section.labels = []
-        for section in self.soma:
-            section.labels.insert(0, "soma")
-        for section in self.dendrites:
-            section.labels.insert(0, "dendrites")
-        for section in self.axon:
-            section.labels.insert(0, "axon")
-
     def _apply_labels(self):
         """Apply special labels according to `diam`, `id` or `tag` rules."""
-        if hasattr(self.__class__, "labels"):
-            for label, category in self.__class__.labels.items():
+        cls = type(self)
+        if hasattr(cls, "labels"):
+            for label, category in cls.labels.items():
                 parent = category.get("from", "sections")
                 try:
                     targets = getattr(self, parent)
@@ -216,18 +142,6 @@ class NeuronModel:
                             target.labels.append(label)
                 elif "tag" in category:
                     pass
-
-
-    def _translate_tags(self, translations, tags):
-        """
-        Translate builder provided metadata into additional labels using a
-        translation list from the model class. e.g. translating SWC tags into
-        multiple labels.
-        """
-        for i, section in enumerate(map(self._nrn_section_map.get, self.all)):
-            tag = tags[i]
-            labels = translations.get(tag, [])
-            section.labels.extend(labels)
 
 
     def _init_section(self, section):
@@ -317,7 +231,7 @@ class NeuronModel:
             section.available_synapse_types = []
         section.available_synapse_types.extend(synapses.copy())
 
-    def boot(self):
+    def __post_init__(self):
         pass
 
     def set_reference_id(self, id):
@@ -457,7 +371,7 @@ class NeuronModel:
 
     @classmethod
     def make_builder(cls, morphology, path=None):
-        return make_builder(morphology, path=path or cls.morphology_directory)
+        return make_builder(morphology, path=path or cls._get_morphology_dir())
 
     @classmethod
     def cable_cell(cls, morphology=0, Vm=-40, K=305.15):
@@ -604,9 +518,22 @@ def _deep_merge(a, b):
 def _cc_insert_labels(label_dict, labels):
     # ASC parser returns broken label_dict, so don't use `in` until
     # https://github.com/arbor-sim/arbor/pull/1541 is merged.
-    # if "dendrites" not in label_dict and "dend" in label_dict:
+    # if "dendrites" not in label_dict and "dend" in label_dict.
+    #
+    # KeyErrors thrown as RuntimeError, see
+    # https://github.com/arbor-sim/arbor/issues/1550
     try:
-        label_dict["dendrites"] = '(region "dend")'
+        label_dict["soma"] = '(tag 1)'
+    except (RuntimeError, KeyError):
+        pass
+    try:
+        label_dict["axon"] = '(tag 2)'
+    except (RuntimeError, KeyError):
+        # KeyErrors thrown as RuntimeError, see
+        # https://github.com/arbor-sim/arbor/issues/1550
+        pass
+    try:
+        label_dict["dendrites"] = '(tag 3)'
     except (RuntimeError, KeyError):
         # KeyErrors thrown as RuntimeError, see
         # https://github.com/arbor-sim/arbor/issues/1550
@@ -677,7 +604,7 @@ def _suppress_stdout():
             sys.stdout = old_stdout
 
 
-def _import3d_load(morphology):
+def _import3d_builder(morphology):
     if not os.path.isfile(morphology):
         raise FileNotFoundError(f"'{morphology}' can't be found. Provide a correct absolute path in the `morphologies` array or add a `morphology_directory` class attribute to your NeuronModel.")
     with _suppress_stdout():
@@ -707,13 +634,39 @@ def _import3d_load(morphology):
                     sec2tag.setdefault(sec, tag)
         except RuntimeError as e:
             raise MorphologyBuilderError(f"Couldn't parse '{morphology}': {e}") from None
-    return loaded_morphology, sec2tag
+    return Import3DBuilder(loaded_morphology, sec2tag)
+
+
+class Import3DBuilder:
+    def __init__(self, loader, tags):
+        self._loader = loader
+        self._tags = tags
+
+    def __call__(self, model, *args, **kwargs):
+        dummy = type("CellPlaceholder", (), {})()
+        self._loader.instantiate(dummy)
+        secmap = dict(zip(dummy.all, (Section(p, s) for s in dummy.all)))
+        model.sections.extend(secmap.values())
+        if self._tags is not None and hasattr(type(model), "tag_translations"):
+            # Do complete tag translations
+            translations = type(model).tag_translations
+            for i, sec in enumerate(secmap.values()):
+                tag = self._tags[i]
+                labels = translations.get(tag, ())
+                sec.labels.extend(labels)
+        else:
+            # Do some basic labelling based on which array NEURON put the sections in.
+            for array, tag in (("soma", "soma"), ("axon", "axon"), ("dend", "dendrites")):
+                for s in getattr(dummy, array, ()):
+                    sec = secmap[s]
+                    if tag not in sec.labels:
+                        sec.labels.insert(0, tag)
 
 
 def make_builder(blueprint, path=None):
     """
         Turn a blueprint (morphology string, builder function or tuple of the former)
-        into a Builder.
+        into a builder function suitable for use in a pipeline.
     """
     if type(blueprint) is str:
         if not os.path.isabs(blueprint):
@@ -722,25 +675,18 @@ def make_builder(blueprint, path=None):
             else:
                 blueprint = os.path.join(path, blueprint)
         # Use Import3D as builder
-        builder, tags = _import3d_load(blueprint)
-        if tags is not None:
-            def set_meta(model):
-                model.builder_meta = m = getattr(model, "builder_meta", dict())
-                m.setdefault("taglist", dict()).update(tags)
-
-            builder = ComboBuilder(builder.instantiate, set_meta)
-        return builder
+        return _import3d_builder(blueprint)
     if callable(blueprint):
         # If a function is given as morphology, treat it as a builder function
-        return Builder(blueprint)
+        return blueprint
     elif isinstance(blueprint, staticmethod):
         # If a static method is given as morphology, treat it as a builder function
-        return Builder(blueprint.__func__)
+        return blueprint.__func__
     elif hasattr(type(blueprint), "__iter__"):
-        # If it is iterable, construct a ComboBuilder that sequentially applies the builders.
-        return ComboBuilder(*iter(blueprint), path=path)
+        # If it is iterable, construct a Pipeline that sequentially applies the builders.
+        return Pipeline(*iter(blueprint), path=path)
     else:
-        raise MorphologyBuilderError("Invalid blueprint data: provide a builder function or a path string to a morphology file.")
+        raise MorphologyBuilderError(f"Invalid blueprint data {blueprint}.")
 
 
 class CompositeType:
