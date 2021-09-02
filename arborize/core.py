@@ -81,11 +81,6 @@ class NeuronModel:
                 cls.section_types[default_type] = {}
         if not hasattr(cls, "glia_package"):
             cls.glia_package = None
-        translations = getattr(cls, "tag_translations", None)
-        if translations is not None:
-            translations.setdefault(1, ["soma"])
-            translations.setdefault(2, ["axon"])
-            translations.setdefault(3, ["dendrites"])
 
     @classmethod
     def _init_morphologies(cls):
@@ -608,8 +603,6 @@ def _import3d_builder(morphology):
     if not os.path.isfile(morphology):
         raise FileNotFoundError(f"'{morphology}' can't be found. Provide a correct absolute path in the `morphologies` array or add a `morphology_directory` class attribute to your NeuronModel.")
     with _suppress_stdout():
-        # Placeholder for the exact SWC tags
-        sec2tag = None
         # Can't EAFP due to https://github.com/neuronsimulator/nrn/issues/1311
         # so we check the extension and hope it matches the content format.
         if morphology.endswith("swc"):
@@ -619,48 +612,33 @@ def _import3d_builder(morphology):
         try:
             loader.input(morphology)
             loaded_morphology = p.Import3d_GUI(loader, 0)
-            try:
-                ids = list(loader.id)
-            except:
-                pass
-            else:
-                # Scrape NEURON internals for the exact SWC tag on each section
-                ids = list(loader.id)
-                pts = list(loader.id2pt(id) for id in ids)
-                tags = list(loader.type.x)
-                sec2tag = dict()
-                for pt, tag in zip(map(int, pts), tags):
-                    sec = loader.point2sec[pt]
-                    sec2tag.setdefault(sec, tag)
         except RuntimeError as e:
             raise MorphologyBuilderError(f"Couldn't parse '{morphology}': {e}") from None
-    return Import3DBuilder(loaded_morphology, sec2tag)
+    return Import3DBuilder(loaded_morphology)
 
 
 class Import3DBuilder:
-    def __init__(self, loader, tags):
+    def __init__(self, loader):
         self._loader = loader
-        self._tags = tags
 
     def __call__(self, model, *args, **kwargs):
         dummy = type("CellPlaceholder", (), {})()
         self._loader.instantiate(dummy)
         secmap = dict(zip(dummy.all, (Section(p, s) for s in dummy.all)))
         model.sections.extend(secmap.values())
-        if self._tags is not None and hasattr(type(model), "tag_translations"):
-            # Do complete tag translations
-            translations = type(model).tag_translations
-            for i, sec in enumerate(secmap.values()):
-                tag = self._tags[i]
-                labels = translations.get(tag, ())
-                sec.labels.extend(labels)
-        else:
-            # Do some basic labelling based on which array NEURON put the sections in.
-            for array, tag in (("soma", "soma"), ("axon", "axon"), ("dend", "dendrites")):
-                for s in getattr(dummy, array, ()):
-                    sec = secmap[s]
-                    if tag not in sec.labels:
-                        sec.labels.insert(0, tag)
+        base_tags = {"soma": 1, "axon": 2, "dend": 3}
+        translations = getattr(type(model), "tag_translations", dict())
+        translations.setdefault(1, ["soma"])
+        translations.setdefault(2, ["axon"])
+        translations.setdefault(3, ["dendrites"])
+        for sec in secmap.values():
+            # Parse NEURON names for the SWC tag -_-
+            name = sec.name().split(".")[-1].split("[")[0]
+            if "_" in name:
+                labels = translations[int(name.split("_")[-1])]
+            else:
+                labels = translations[base_tags[name]]
+            sec.labels.extend(labels)
 
 
 def make_builder(blueprint, path=None):
