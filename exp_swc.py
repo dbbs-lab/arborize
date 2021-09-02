@@ -10,6 +10,7 @@ for morfo in sys.argv[1:]:
     ntag = 16
     comp_id = itertools.count(1)
     tags = dict()
+    npoints = dict()
 
     def get_sid(labels):
         global ntag, tags
@@ -23,10 +24,12 @@ for morfo in sys.argv[1:]:
 
 
     def write_branch(file, branch, connector):
+        global npoints
         sid = get_sid(branch._full_labels)
         parent = connector
 
         for x, y, z, r in branch.walk():
+            npoints[sid] = npoints.get(sid, 0) + 1
             id = next(comp_id)
             file.write(" ".join(map(str, (id, sid, x, y, z, r, parent))) + "\n")
             parent = id
@@ -42,5 +45,9 @@ for morfo in sys.argv[1:]:
             write_branch(f, root, connector=-1)
         print("tag_translations = {")
         for k, v in tags.items():
+            print(" ", f"{k}: {v},")
+        print("}")
+        print("points = {")
+        for k, v in npoints.items():
             print(" ", f"{k}: {v},")
         print("}")
