@@ -8,7 +8,7 @@ for morfo in sys.argv[1:]:
     tags = ["soma", "axon", "dendrites"]
     structure_id = dict(zip(tags, (1, 2, 3)))
     ntag = 16
-    comp_id = itertools.count()
+    comp_id = itertools.count(1)
     tags = dict()
 
     def get_sid(labels):
