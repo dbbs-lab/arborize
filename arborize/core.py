@@ -369,7 +369,7 @@ class NeuronModel:
         return make_builder(morphology, path=path or cls._get_morphology_dir())
 
     @classmethod
-    def cable_cell(cls, morphology=0):
+    def cable_cell(cls, morphology=0, decor=None):
         try:
             import arbor
         except ImportError:
@@ -382,7 +382,8 @@ class NeuronModel:
         _cc_insert_labels(labels, getattr(cls, "labels", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
 
-        decor = arbor.decor()
+        if decor is None:
+            decor = arbor.decor()
         dflt_policy = arbor.cv_policy_max_extent(40.0)
         soma_policy = arbor.cv_policy_fixed_per_branch(1, '(tag 1)')
         policy = dflt_policy | soma_policy
