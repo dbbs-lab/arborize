@@ -229,6 +229,17 @@ class NeuronModel:
     def __post_init__(self):
         pass
 
+    @classmethod
+    def catalogue(cls):
+        """
+        Override to return the catalogue required to run this model
+        """
+        try:
+            import arbor
+        except ImportError:
+            raise ImportError("`arbor` unavailable, can't make arbor models.")
+        return arbor.default_catalogue(), ""
+
     def set_reference_id(self, id):
         '''
             Add an id that can be used as reference for outside software.
