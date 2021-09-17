@@ -82,15 +82,6 @@ class NeuronModel:
         if not hasattr(cls, "glia_package"):
             cls.glia_package = None
 
-    @classmethod
-    def _init_morphologies(cls):
-        # Check if morphologies were specified
-        if not hasattr(cls, "morphologies") or len(cls.morphologies) == 0:
-            raise ModelClassError("The NeuronModel class '{}' does not specify a non-empty array of morphologies".format(cls.__name__))
-        # Import the morphologies if they haven't been imported yet
-        if not hasattr(cls, "imported_morphologies"):
-            cls._import_morphologies()
-
     def __getattr__(self, attribute):
         if attribute == "Vm":
             raise NotRecordingError("Trying to read Vm of a cell that is not recording." + " Use `.record_soma()` to enable recording of the soma.")
