@@ -33,7 +33,7 @@ setuptools.setup(
         "errr"
      ],
      extras_require={
-      "dev": ["sphinx", "sphinx_rtd_theme"],
+      "dev": ["sphinx", "sphinx_rtd_theme", "chef"],
       "beam": ["ndsb"],
      }
  )

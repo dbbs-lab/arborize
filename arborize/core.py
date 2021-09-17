@@ -415,6 +415,19 @@ class NeuronModel:
         morph, labels, decor = cls._cable_cell(morphology, decor)
         return arbor.cable_cell(morph, labels, decor)
 
+    @classmethod
+    def as_ingredient(cls, name=None, morphology=0, decor=None):
+        from chef import Ingredient, DecorSpy
+        import arbor
+
+        if name is None:
+            name = cls.__name__
+        if decor is None:
+            decor = DecorSpy()
+        cat = cls.catalogue()
+        morph, labels, decor = cls._cable_cell(morphology, decor)
+        return Ingredient(name, cat, morph, labels, decor)
+
 
 def _try_mech_presence(mech, resolved):
     # Look for a full match, this also covers the
