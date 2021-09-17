@@ -380,11 +380,8 @@ class NeuronModel:
         return make_builder(morphology, path=path or cls._get_morphology_dir())
 
     @classmethod
-    def cable_cell(cls, morphology=0, decor=None):
-        try:
-            import arbor
-        except ImportError:
-            raise ImportError("`arbor` unavailable, can't make arbor models.")
+    def _cable_cell(cls, morphology=0, decor=None):
+        import arbor
 
         if not isinstance(cls.morphologies[morphology], str):
             raise NotImplementedError("Can't use builders for cable cells, must import from file. Please export your morphology builder to an SWC or ASC file and update `cls.morphologies`.")
@@ -406,6 +403,16 @@ class NeuronModel:
                 label,
                 definition
             )
+        return morph, labels, decor
+
+    @classmethod
+    def cable_cell(cls, morphology=0, decor=None):
+        try:
+            import arbor
+        except ImportError:
+            raise ImportError("`arbor` unavailable, can't make arbor models.")
+
+        morph, labels, decor = cls._cable_cell(morphology, decor)
         return arbor.cable_cell(morph, labels, decor)
 
 
