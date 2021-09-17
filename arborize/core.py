@@ -141,8 +141,6 @@ class NeuronModel:
 
     def _init_section(self, section):
         section.cell = self
-        # Set the amount of sections to some standard odd amount
-        section.nseg = 1 + (2 * int(section.L / 40))
         # Store a map of mechanisms to full mod_names for the attribute setter
         for label in section.labels:
             if label not in self.__class__.section_types:
