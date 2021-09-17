@@ -385,7 +385,7 @@ class NeuronModel:
             raise NotImplementedError("Can't use builders for cable cells, must import from file. Please export your morphology builder to an SWC or ASC file and update `cls.morphologies`.")
         path = os.path.join(cls.morphology_directory, cls.morphologies[morphology])
         morph, labels = _try_arb_morpho(path)
-        _cc_insert_labels(labels, getattr(cls, "labels", {}))
+        _cc_insert_labels(labels, getattr(cls, "labels", {}), getattr(cls, "tags", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
 
         if decor is None:
@@ -535,36 +535,38 @@ def _deep_merge(a, b):
             c = b
     return c
 
-def _cc_insert_labels(label_dict, labels):
-    # ASC parser returns broken label_dict, so don't use `in` until
-    # https://github.com/arbor-sim/arbor/pull/1541 is merged.
-    # if "dendrites" not in label_dict and "dend" in label_dict.
-    #
-    # KeyErrors thrown as RuntimeError, see
-    # https://github.com/arbor-sim/arbor/issues/1550
-    try:
-        label_dict["soma"] = '(tag 1)'
-    except (RuntimeError, KeyError):
-        pass
+def _cc_insert_labels(label_dict, labels, tags):
+    _cc_tag_labels(label_dict, tags)
+    # Add a default `all` label
     try:
         label_dict["all"] = '(all)'
     except (RuntimeError, KeyError):
         pass
-    try:
-        label_dict["axon"] = '(tag 2)'
-    except (RuntimeError, KeyError):
-        # KeyErrors thrown as RuntimeError, see
-        # https://github.com/arbor-sim/arbor/issues/1550
-        pass
-    try:
-        label_dict["dendrites"] = '(tag 3)'
-    except (RuntimeError, KeyError):
-        # KeyErrors thrown as RuntimeError, see
-        # https://github.com/arbor-sim/arbor/issues/1550
-        pass
+
     for label, def_ in labels.items():
         if "arbor" in def_:
             label_dict[label] = def_["arbor"]
+
+
+def _cc_tag_labels(label_dict, tags):
+    # Translate tags into labels. e.g. if tag 13 is labelled as ["axon", "pf2"]
+    # then labels for `axon` and `pf2` should be created comprising tag 13.
+    tags.setdefault(1, ["soma"])
+    tags.setdefault(2, ["axon"])
+    tags.setdefault(3, ["dendrites"])
+    tag_map = {}
+    for tag, labels in tags.items():
+        for label in labels:
+            if label not in tag_map:
+                tag_map[label] = []
+            tag_map[label].append(tag)
+
+    for label, tags in tag_map.items():
+        if label not in label_dict:
+            if len(tags) == 1:
+                label_dict[label] = s = f'(tag {tags[0]})'
+            else:
+                label_dict[label] = s = f"(join {' '.join(f'(tag {tag})' for tag in tags)})"
 
 
 _cc_ion_prop_map = {
@@ -656,7 +658,7 @@ class Import3DBuilder:
         secmap = dict(zip(dummy.all, (Section(p, s) for s in dummy.all)))
         model.sections.extend(secmap.values())
         base_tags = {"soma": 1, "axon": 2, "dend": 3}
-        translations = getattr(type(model), "tag_translations", dict())
+        translations = getattr(type(model), "tags", dict())
         translations.setdefault(1, ["soma"])
         translations.setdefault(2, ["axon"])
         translations.setdefault(3, ["dendrites"])
