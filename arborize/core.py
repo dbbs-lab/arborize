@@ -73,7 +73,7 @@ class NeuronModel:
 
     def __init_subclass__(cls, abstract=False, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._abstract = abstract
+        cls._abstract = cls.__dict__.get("abstract", False)
         if not hasattr(cls, "section_types"):
             cls.section_types = {}
         for default_type in ["soma", "dendrites", "axon"]:
@@ -92,6 +92,8 @@ class NeuronModel:
     @classmethod
     @functools.cache
     def get_morphology_builder(cls, index):
+        if cls._abstract:
+            raise AbstractError(f"Can't build abstract model {cls.__name__}.")
         m_dir = getattr(cls, "morphology_directory", cls._get_morphology_dir())
         return cls.make_builder(cls.morphologies[index], path=m_dir)
 
