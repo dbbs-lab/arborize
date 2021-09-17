@@ -15,7 +15,7 @@ if not os.getenv('READTHEDOCS'):
     p.load_file('stdlib.hoc')
     p.load_file('import3d.hoc')
 
-# Patch initialization of Sections
+# Overwrite initialization of Sections in this file.
 class Section(Section):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -49,7 +49,7 @@ class NeuronModel:
         class variables. See the :doc:`/neuron_model`
     """
     def __init__(self, position=None, morphology=0, candidate=0, synapses=0):
-        if self.__class__._abstract:
+        if type(self)._abstract:
             raise NotImplementedError(f"Can't instantiate abstract NeuronModel {self.__class__.__name__}")
         # Initialize variables
         self.position = np.array(position if position is not None else [0., 0., 0.])
@@ -73,7 +73,7 @@ class NeuronModel:
 
     def __init_subclass__(cls, abstract=False, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._abstract = cls.__dict__.get("abstract", False)
+        cls._abstract = abstract
         if not hasattr(cls, "section_types"):
             cls.section_types = {}
         for default_type in ["soma", "dendrites", "axon"]:
