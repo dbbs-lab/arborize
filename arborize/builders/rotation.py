@@ -14,7 +14,7 @@ def rotate(v0, v):
     # the soma, dend or axon arrays according to this rotation.
     def builder(model, *args, **kwargs):
         # Loop over the sections
-        for s in iter(model.soma + model.dend + model.axon):
+        for s in model.sections:
             # Loop over the pt3d
             for i in range(s.n3d()):
                 # Get the rotated point

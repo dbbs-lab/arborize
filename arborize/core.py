@@ -39,7 +39,7 @@ class Pipeline:
 
     def __call__(self, model, *args, **kwargs):
         # Apply all builders in the pipeline sequence in order.
-        for builder in builder_pipe:
+        for builder in self._pipe:
             builder(model, *args, **kwargs)
 
 class NeuronModel:
