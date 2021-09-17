@@ -536,6 +536,10 @@ def _cc_insert_labels(label_dict, labels):
     except (RuntimeError, KeyError):
         pass
     try:
+        label_dict["all"] = '(all)'
+    except (RuntimeError, KeyError):
+        pass
+    try:
         label_dict["axon"] = '(tag 2)'
     except (RuntimeError, KeyError):
         # KeyErrors thrown as RuntimeError, see
