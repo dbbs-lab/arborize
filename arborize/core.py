@@ -394,7 +394,8 @@ class NeuronModel:
             _cc_all(
                 decor,
                 label,
-                definition
+                definition,
+                catalogue
             )
         return morph, labels, decor
 
@@ -447,15 +448,15 @@ def _try_arb_morpho(path):
     return morfo, labels
 
 
-def _cc_all(decor, label, definition):
+def _cc_all(decor, label, definition, catalogue):
     _cc_insert_cable(decor, label, definition.get("cable", {}))
     _cc_insert_ions(decor, label, definition.get("ions", {}))
-    _cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
+    _cc_insert_mechs(decor, label, definition.get("mechanisms", {}), catalogue)
     # _cc_insert_synapses(decor, label, definition.get("synapses", []))
 
 # Kv1_5: uses 'no' ion
 
-def _cc_insert_mechs(decor, label, mechs):
+def _cc_insert_mechs(decor, label, mechs, catalogue):
     import arbor
     i = 0
     for mech_name, mech_attrs in mechs.items():
