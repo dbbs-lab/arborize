@@ -387,6 +387,8 @@ class NeuronModel:
         soma_policy = arbor.cv_policy_fixed_per_branch(1, '(tag 1)')
         policy = dflt_policy | soma_policy
         decor.discretization(policy)
+        catalogue = arbor.empty_catalogue()
+        catalogue.extend(*cls.catalogue())
 
         for label, definition in composites.items():
             _cc_all(
