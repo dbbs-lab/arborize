@@ -459,10 +459,32 @@ def _cc_all(decor, label, definition, catalogue):
 def _cc_insert_mechs(decor, label, mechs, catalogue):
     import arbor
     i = 0
-    for mech_name, mech_attrs in mechs.items():
-        if isinstance(mech_name, tuple):
-            mech_name = "_".join(mech_name)
-        mech = arbor.mechanism(mech_name, mech_attrs or {})
+    for mech_def, mech_attrs in mechs.items():
+        if isinstance(mech_def, tuple):
+            mech_name = "_".join(mech_def)
+        else:
+            mech_name = mech_def
+            mech_def = (mech_name,)
+        try:
+            mech_info = catalogue[mech_name]
+        except KeyError:
+            raise MechanismNotFoundError(f"Could not find '{mech_name}' in catalogue. Catalogue mechanisms: " + ", ".join(catalogue), *mech_def)
+        # Params need to be sorted into globals and others, see
+        # https://github.com/arbor-sim/arbor/issues/1226
+        mi_globals = mech_info.globals
+        params = {}
+        sep = "/"
+        mech_derivation = mech_name
+        for k, v in mech_attrs.items():
+            if k in mi_globals:
+                mech_derivation += f"{sep}{k}={v}"
+                sep = ","
+            else:
+                params[k] = v
+        # Examples:
+        #   arbor.mechanism("pas/e=55,x=-2", params)
+        #   arbor.mechanism("pas", params)
+        mech = arbor.mechanism(mech_derivation, params)
         decor.paint(f'"{label}"', mech)
         i += 1
 
