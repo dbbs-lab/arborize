@@ -378,7 +378,7 @@ class NeuronModel:
             raise NotImplementedError("Can't use builders for cable cells, must import from file. Please export your morphology builder to an SWC or ASC file and update `cls.morphologies`.")
         path = os.path.join(cls.morphology_directory, cls.morphologies[morphology])
         morph, labels = _try_arb_morpho(path)
-        _cc_insert_labels(labels, getattr(cls, "labels", {}), getattr(cls, "tags", {}))
+        cls._cc_insert_labels(labels, getattr(cls, "labels", {}), getattr(cls, "tags", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
 
         if decor is None:
@@ -387,15 +387,12 @@ class NeuronModel:
         soma_policy = arbor.cv_policy_fixed_per_branch(1, '(tag 1)')
         policy = dflt_policy | soma_policy
         decor.discretization(policy)
-        catalogue = arbor.empty_catalogue()
-        catalogue.extend(*cls.catalogue())
 
         for label, definition in composites.items():
-            _cc_all(
+            cls._cc_all(
                 decor,
                 label,
-                definition,
-                catalogue
+                definition
             )
         return morph, labels, decor
 
@@ -408,6 +405,93 @@ class NeuronModel:
 
         morph, labels, decor = cls._cable_cell(morphology, decor)
         return arbor.cable_cell(morph, labels, decor)
+
+    @classmethod
+    def _cc_all(cls, decor, label, definition):
+        cls._cc_insert_cable(decor, label, definition.get("cable", {}))
+        cls._cc_insert_ions(decor, label, definition.get("ions", {}))
+        cls._cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
+        # _cc_insert_synapses(decor, label, definition.get("synapses", []))
+
+    @classmethod
+    def _cc_insert_mechs(cls, decor, label, mechs):
+        import arbor
+
+        catalogue = cls.get_catalogue()
+        prefix = cls.get_catalogue_prefix()
+        for mech_def, mech_attrs in mechs.items():
+            if isinstance(mech_def, tuple):
+                mech_name = "_".join(mech_def)
+            else:
+                mech_name = mech_def
+                mech_def = (mech_name,)
+            mech_name = prefix + mech_name
+            try:
+                mech_info = catalogue[mech_name]
+            except KeyError:
+                raise MechanismNotFoundError(f"Could not find '{mech_name}' in catalogue. Catalogue mechanisms: " + ", ".join(catalogue), *mech_def)
+            # Params need to be sorted into globals and others, see
+            # https://github.com/arbor-sim/arbor/issues/1226
+            mi_globals = mech_info.globals
+            params = {}
+            sep = "/"
+            mech_derivation = mech_name
+            for k, v in mech_attrs.items():
+                if k in mi_globals:
+                    mech_derivation += f"{sep}{k}={v}"
+                    sep = ","
+                else:
+                    params[k] = v
+            # Examples:
+            #   arbor.mechanism("pas/e=55,x=-2", params)
+            #   arbor.mechanism("pas", params)
+            mech = arbor.mechanism(mech_derivation, params)
+            decor.paint(f'"{label}"', mech)
+
+    @classmethod
+    def _cc_insert_labels(cls, label_dict, labels, tags):
+        cls._cc_tag_labels(label_dict, tags)
+        # Add a default `all` label
+        try:
+            label_dict["all"] = '(all)'
+        except (RuntimeError, KeyError):
+            pass
+
+        for label, def_ in labels.items():
+            if "arbor" in def_:
+                label_dict[label] = def_["arbor"]
+
+    @classmethod
+    def _cc_tag_labels(cls, label_dict, tags):
+        # Translate tags into labels. e.g. if tag 13 is labelled as ["axon", "pf2"]
+        # then labels for `axon` and `pf2` should be created comprising tag 13.
+        tags.setdefault(1, ["soma"])
+        tags.setdefault(2, ["axon"])
+        tags.setdefault(3, ["dendrites"])
+        tag_map = {}
+        for tag, labels in tags.items():
+            for label in labels:
+                if label not in tag_map:
+                    tag_map[label] = []
+                tag_map[label].append(tag)
+
+        for label, tags in tag_map.items():
+            if label not in label_dict:
+                if len(tags) == 1:
+                    label_dict[label] = s = f'(tag {tags[0]})'
+                else:
+                    label_dict[label] = s = f"(join {' '.join(f'(tag {tag})' for tag in tags)})"
+
+    @classmethod
+    def _cc_insert_ions(cls, decor, label, ions):
+        for ion, def_ in ions.items():
+            kwargs = {_cc_ion_prop_map.get(d): v for d, v in def_.items()}
+            decor.set_ion(ion, **kwargs)
+
+    @classmethod
+    def _cc_insert_cable(cls, decor, label, cable):
+        kwargs = {(p := _cc_cable_prop_map.get(c))[0]: p[1](v) for c, v in cable.items()}
+        decor.paint(f'(region "{label}")', **kwargs)
 
     @classmethod
     def as_ingredient(cls, name=None, morphology=0, decor=None):
@@ -448,47 +532,6 @@ def _try_arb_morpho(path):
     return morfo, labels
 
 
-def _cc_all(decor, label, definition, catalogue):
-    _cc_insert_cable(decor, label, definition.get("cable", {}))
-    _cc_insert_ions(decor, label, definition.get("ions", {}))
-    _cc_insert_mechs(decor, label, definition.get("mechanisms", {}), catalogue)
-    # _cc_insert_synapses(decor, label, definition.get("synapses", []))
-
-# Kv1_5: uses 'no' ion
-
-def _cc_insert_mechs(decor, label, mechs, catalogue):
-    import arbor
-    i = 0
-    for mech_def, mech_attrs in mechs.items():
-        if isinstance(mech_def, tuple):
-            mech_name = "_".join(mech_def)
-        else:
-            mech_name = mech_def
-            mech_def = (mech_name,)
-        try:
-            mech_info = catalogue[mech_name]
-        except KeyError:
-            raise MechanismNotFoundError(f"Could not find '{mech_name}' in catalogue. Catalogue mechanisms: " + ", ".join(catalogue), *mech_def)
-        # Params need to be sorted into globals and others, see
-        # https://github.com/arbor-sim/arbor/issues/1226
-        mi_globals = mech_info.globals
-        params = {}
-        sep = "/"
-        mech_derivation = mech_name
-        for k, v in mech_attrs.items():
-            if k in mi_globals:
-                mech_derivation += f"{sep}{k}={v}"
-                sep = ","
-            else:
-                params[k] = v
-        # Examples:
-        #   arbor.mechanism("pas/e=55,x=-2", params)
-        #   arbor.mechanism("pas", params)
-        mech = arbor.mechanism(mech_derivation, params)
-        decor.paint(f'"{label}"', mech)
-        i += 1
-
-
 def _arb_resolve_composites(definitions, label_dict):
     # For each conp, copy the parent definitions, then empty the parents and
     # create virtual intersections that exclude the child composites to
@@ -522,12 +565,12 @@ def _arb_resolve_composites(definitions, label_dict):
 
     # Merge the parent types and the child on top.
     for name, comp in comps.items():
-        resolved[name] = _cc_def_merge(*comp._parents, comp._self)
+        resolved[name] = _def_merge(*comp._parents, comp._self)
 
     return resolved
 
 
-def _cc_def_merge(*dicts):
+def _def_merge(*dicts):
     carry = dict()
     merger = iter(dicts)
     while (m := next(merger, None)) is not None:
@@ -553,39 +596,6 @@ def _deep_merge(a, b):
             c = b
     return c
 
-def _cc_insert_labels(label_dict, labels, tags):
-    _cc_tag_labels(label_dict, tags)
-    # Add a default `all` label
-    try:
-        label_dict["all"] = '(all)'
-    except (RuntimeError, KeyError):
-        pass
-
-    for label, def_ in labels.items():
-        if "arbor" in def_:
-            label_dict[label] = def_["arbor"]
-
-
-def _cc_tag_labels(label_dict, tags):
-    # Translate tags into labels. e.g. if tag 13 is labelled as ["axon", "pf2"]
-    # then labels for `axon` and `pf2` should be created comprising tag 13.
-    tags.setdefault(1, ["soma"])
-    tags.setdefault(2, ["axon"])
-    tags.setdefault(3, ["dendrites"])
-    tag_map = {}
-    for tag, labels in tags.items():
-        for label in labels:
-            if label not in tag_map:
-                tag_map[label] = []
-            tag_map[label].append(tag)
-
-    for label, tags in tag_map.items():
-        if label not in label_dict:
-            if len(tags) == 1:
-                label_dict[label] = s = f'(tag {tags[0]})'
-            else:
-                label_dict[label] = s = f"(join {' '.join(f'(tag {tag})' for tag in tags)})"
-
 
 _cc_ion_prop_map = {
     "e": "rev_pot"
@@ -593,17 +603,6 @@ _cc_ion_prop_map = {
 _cc_cable_prop_map = {
     "Ra": ("rL", lambda Ra: Ra), "cm": ("cm", lambda cm: cm / 100),
 }
-
-
-def _cc_insert_ions(decor, label, ions):
-    for ion, def_ in ions.items():
-        kwargs = {_cc_ion_prop_map.get(d): v for d, v in def_.items()}
-        decor.set_ion(ion, **kwargs)
-
-
-def _cc_insert_cable(decor, label, cable):
-    kwargs = {(p := _cc_cable_prop_map.get(c))[0]: p[1](v) for c, v in cable.items()}
-    decor.paint(f'(region "{label}")', **kwargs)
 
 
 def get_section_receivers(section, types=None):
@@ -736,4 +735,4 @@ def compose_types(*args):
 def flatten_composite(model, comp):
     if not isinstance(comp, CompositeType):
         return comp
-    return _cc_def_merge(*map(model.section_types.get, comp._parent_types), comp._self)
+    return _def_merge(*map(model.section_types.get, comp._parent_types), comp._self)
