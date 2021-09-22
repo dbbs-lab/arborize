@@ -524,8 +524,15 @@ class NeuronModel:
         decor.paint(f'(region "{label}")', **kwargs)
 
     @classmethod
-    def as_ingredient(cls, name=None, morphology=0, decor=None):
-        from chef import Ingredient, DecorSpy
+    def as_patient(cls, name=None, morphology=0, decor=None):
+        """
+        Gather all information on the model and return it as a
+        :class:`~pesticide.Patient`.
+        """
+        try:
+            from pesticide import Patient, DecorSpy
+        except ImportError:
+            raise ImportError("Install `dev` requirements.")
         import arbor
 
         if name is None:
@@ -534,7 +541,7 @@ class NeuronModel:
             decor = DecorSpy()
         cat = cls.get_catalogue()
         morph, labels, decor = cls._cable_cell(morphology, decor)
-        return Ingredient(name, cat, morph, labels, decor)
+        return Patient(name, cat, morph, labels, decor)
 
 
 def _try_mech_presence(mech, resolved):
