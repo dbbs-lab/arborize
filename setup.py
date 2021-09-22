@@ -27,10 +27,13 @@ setuptools.setup(
      install_requires=[
         "nrn-glia>=0.3.8",
         "nrn-patch>=3.0.0b1",
+        "nrn-subprocess>=1.3.2",
+        "efel",
         "numpy",
         "errr"
      ],
      extras_require={
-      "dev": ["sphinx", "sphinx_rtd_theme"]
+      "dev": ["sphinx", "sphinx_rtd_theme"],
+      "beam": ["ndsb"],
      }
  )

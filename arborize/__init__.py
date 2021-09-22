@@ -1,4 +1,4 @@
 from .core import *
 from .synapse import Synapse
 
-__version__ = "2.0.0b8"
+__version__ = "2.0.0b12"
