@@ -532,7 +532,7 @@ class NeuronModel:
             name = cls.__name__
         if decor is None:
             decor = DecorSpy()
-        cat = cls.catalogue()
+        cat = cls.get_catalogue()
         morph, labels, decor = cls._cable_cell(morphology, decor)
         return Ingredient(name, cat, morph, labels, decor)
 
