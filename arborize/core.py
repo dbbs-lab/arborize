@@ -254,7 +254,7 @@ class NeuronModel:
             import arbor
         except ImportError:
             raise ImportError("`arbor` unavailable, can't make arbor models.")
-        base_cat = arbor.empty_catalogue()
+        base_cat = arbor.catalogue()
         cat = cls._get_catalogue()
         prefix = cls.get_catalogue_prefix()
         base_cat.extend(cat, prefix)
