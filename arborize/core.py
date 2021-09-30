@@ -6,6 +6,11 @@ from .exceptions import *
 import numpy as np
 import functools
 
+try:
+    functools.cache
+except AttributeError:
+    functools.cache = functools.lru_cache(None)
+
 if not os.getenv('READTHEDOCS'):
     from patch import p, transform
     from patch.objects import Section
