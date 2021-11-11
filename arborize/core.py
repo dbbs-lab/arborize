@@ -532,13 +532,13 @@ class NeuronModel:
         decor.paint(f'(region "{label}")', **kwargs)
 
     @classmethod
-    def as_patient(cls, name=None, morphology=0, decor=None):
+    def as_tree(cls, name=None, morphology=0, decor=None):
         """
         Gather all information on the model and return it as a
-        :class:`~pesticide.Patient`.
+        :class:`pesticide.Tree`.
         """
         try:
-            from pesticide import Patient, DecorSpy
+            from pesticide import Tree, DecorSpy
         except ImportError:
             raise ImportError("Install `dev` requirements.")
         import arbor
@@ -549,7 +549,7 @@ class NeuronModel:
             decor = DecorSpy()
         cat = cls.get_catalogue()
         morph, labels, decor = cls._cable_cell(morphology, decor)
-        return Patient(name, cat, morph, labels, decor)
+        return Tree(name, cat, morph, labels, decor)
 
 
 def _try_mech_presence(mech, resolved):
