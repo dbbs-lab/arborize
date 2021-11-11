@@ -406,18 +406,21 @@ class NeuronModel:
         return make_builder(morphology, path=path or cls._get_morphology_dir())
 
     @classmethod
-    def _cable_cell(cls, morphology=0, decor=None):
+    def _cable_cell(cls, morphology=0, decor=None, labels=None):
         import arbor
 
         if not isinstance(cls.morphologies[morphology], str):
             raise NotImplementedError("Can't use builders for cable cells, must import from file. Please export your morphology builder to an SWC or ASC file and update `cls.morphologies`.")
+        if labels is None:
+            labels = arbor.label_dict()
+        if decor is None:
+            decor = arbor.decor()
         path = os.path.join(cls.morphology_directory, cls.morphologies[morphology])
-        morph, labels = _try_arb_morpho(path)
+        morph, morpho_labels = _try_arb_morpho(path)
+        labels.update(morpho_labels)
         cls._cc_insert_labels(labels, getattr(cls, "labels", {}), getattr(cls, "tags", {}))
         composites = _arb_resolve_composites(cls.section_types, labels)
 
-        if decor is None:
-            decor = arbor.decor()
         dflt_policy = arbor.cv_policy_max_extent(40.0)
         soma_policy = arbor.cv_policy_fixed_per_branch(1, '(tag 1)')
         policy = dflt_policy | soma_policy
@@ -432,13 +435,13 @@ class NeuronModel:
         return morph, labels, decor
 
     @classmethod
-    def cable_cell(cls, morphology=0, decor=None):
+    def cable_cell(cls, morphology=0, decor=None, labels=None):
         try:
             import arbor
         except ImportError:
             raise ImportError("`arbor` unavailable, can't make arbor models.")
 
-        morph, labels, decor = cls._cable_cell(morphology, decor)
+        morph, labels, decor = cls._cable_cell(morphology, decor, labels)
         return arbor.cable_cell(morph, labels, decor)
 
     @classmethod
@@ -478,9 +481,9 @@ class NeuronModel:
                 else:
                     params[k] = v
             # Examples:
-            #   arbor.mechanism("pas/e=55,x=-2", params)
-            #   arbor.mechanism("pas", params)
-            mech = arbor.mechanism(mech_derivation, params)
+            #   arbor.density("pas/e=55,x=-2", params)
+            #   arbor.density("pas", params)
+            mech = arbor.density(mech_derivation, params)
             decor.paint(f'"{label}"', mech)
 
     @classmethod
