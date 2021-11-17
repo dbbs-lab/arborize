@@ -406,7 +406,7 @@ class NeuronModel:
         return make_builder(morphology, path=path or cls._get_morphology_dir())
 
     @classmethod
-    def _cable_cell(cls, morphology=0, decor=None, labels=None):
+    def cable_cell_template(cls, morphology=0, decor=None, labels=None):
         import arbor
 
         if not isinstance(cls.morphologies[morphology], str):
@@ -441,7 +441,7 @@ class NeuronModel:
         except ImportError:
             raise ImportError("`arbor` unavailable, can't make arbor models.")
 
-        morph, labels, decor = cls._cable_cell(morphology, decor, labels)
+        morph, labels, decor = cls.cable_cell_template(morphology, decor, labels)
         return arbor.cable_cell(morph, labels, decor)
 
     @classmethod
@@ -728,9 +728,15 @@ class Import3DBuilder:
             # Parse NEURON names for the SWC tag -_-
             name = sec.name().split(".")[-1].split("[")[0]
             if "_" in name:
-                labels = translations[int(name.split("_")[-1])]
+                labels = translations.get(int(name.split("_")[-1]), [])
             else:
-                labels = translations[base_tags[name]]
+                try:
+                    labels = translations[base_tags[name]]
+                except KeyError:
+                    model_name = type(model).__name__
+                    raise RuntimeError(
+                        f"Section {name} of {model_name} has unknown section type."
+                    ) from None
             sec.labels.extend(labels)
 
 
