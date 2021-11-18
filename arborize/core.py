@@ -726,9 +726,11 @@ class Import3DBuilder:
         translations.setdefault(3, ["dendrites"])
         for sec in secmap.values():
             # Parse NEURON names for the SWC tag -_-
+            # NEURON marks everything that isn't tag 1 or 2 as `dend_X`
             name = sec.name().split(".")[-1].split("[")[0]
             if "_" in name:
-                labels = translations.get(int(name.split("_")[-1]), [])
+                # Either translate the tag, or fall back to dendrite.
+                labels = translations.get(int(name.split("_")[-1]), ["dendrites"])
             else:
                 try:
                     labels = translations[base_tags[name]]
