@@ -449,7 +449,6 @@ class NeuronModel:
         cls._cc_insert_cable(decor, label, definition.get("cable", {}))
         cls._cc_insert_ions(decor, label, definition.get("ions", {}))
         cls._cc_insert_mechs(decor, label, definition.get("mechanisms", {}))
-        # _cc_insert_synapses(decor, label, definition.get("synapses", []))
 
     @classmethod
     def _cc_insert_mechs(cls, decor, label, mechs):
