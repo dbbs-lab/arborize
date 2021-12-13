@@ -18,15 +18,14 @@ try:
 except AttributeError:
     functools.cache = functools.lru_cache(None)
 
-if not os.getenv("READTHEDOCS"):
-    from patch import p, transform
-    from patch.objects import Section
-    import glia as g
-    from .synapse import Synapse
-    import glia.exceptions
+from patch import p, transform
+from patch.objects import Section
+import glia as g
+from .synapse import Synapse
+import glia.exceptions
 
-    p.load_file("stdlib.hoc")
-    p.load_file("import3d.hoc")
+p.load_file("stdlib.hoc")
+p.load_file("import3d.hoc")
 
 # Overwrite initialization of Sections in this file.
 class Section(Section):
