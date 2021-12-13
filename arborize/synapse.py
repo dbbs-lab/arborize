@@ -1,16 +1,27 @@
 import glia as g
 from patch import p
 
-class Synapse:
 
-    def __init__(self, cell, section, point_process_name, attributes = {}, variant=None, type=None, source=None):
+class Synapse:
+    def __init__(
+        self,
+        cell,
+        section,
+        point_process_name,
+        attributes={},
+        variant=None,
+        type=None,
+        source=None,
+    ):
         self._cell = cell
         self._type = type
         self._section = section
         self._point_process_name = point_process_name
         self.source = source
         with g.context(pkg=cell.__class__.glia_package):
-            self._point_process_glia_name = g.resolve(point_process_name, variant=variant)
+            self._point_process_glia_name = g.resolve(
+                point_process_name, variant=variant
+            )
             self._point_process = g.insert(section, point_process_name, variant=variant)
         section.__ref__(self)
         for key, value in attributes.items():
@@ -27,6 +38,8 @@ class Synapse:
 
     def presynaptic(self, section, x=0.5, **kwargs):
         if self.source is None:
-            return p.NetCon(section(x)._ref_v, self._point_process, sec=section, **kwargs)
+            return p.NetCon(
+                section(x)._ref_v, self._point_process, sec=section, **kwargs
+            )
         else:
             setattr(self._point_process, f"_ref_{self.source}", section(x)._ref_v)

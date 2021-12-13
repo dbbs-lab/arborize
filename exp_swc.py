@@ -22,7 +22,6 @@ for morfo in sys.argv[1:]:
             ntag += 1
         return sid
 
-
     def write_branch(file, branch, connector):
         global npoints
         sid = get_sid(branch._full_labels)
@@ -35,7 +34,6 @@ for morfo in sys.argv[1:]:
             parent = id
         for child in branch._children:
             write_branch(file, child, connector=parent)
-
 
     with open(f"{morfo}.swc", "w") as f:
         print("------------")

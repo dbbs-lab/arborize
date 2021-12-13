@@ -1,6 +1,7 @@
 from errr.tree import make_tree as _make_tree, exception as _e
 
-_make_tree(globals(),
+_make_tree(
+    globals(),
     ArborizeError=_e(
         ConnectionError=_e(
             AmbiguousSynapseError=_e(),

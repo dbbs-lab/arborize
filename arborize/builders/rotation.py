@@ -1,12 +1,13 @@
 import numpy as np, math
 
+
 def rotate(v0, v):
     """
-        Return a builder function that rotates all section arrays (soma, dend, axon).
+    Return a builder function that rotates all section arrays (soma, dend, axon).
 
-        Transforming a morphology every time it is loaded is not efficient. Instead use
-        this function to rotate the morphology, then save it to a format that can be
-        loaded directly. This way the rotation step can be removed.
+    Transforming a morphology every time it is loaded is not efficient. Instead use
+    this function to rotate the morphology, then save it to a format that can be
+    loaded directly. This way the rotation step can be removed.
     """
     # Get the rotation matrix for the transformation of v0 to v.
     R = get_rotation_matrix(v0, v)
@@ -22,6 +23,7 @@ def rotate(v0, v):
                 pt = R.dot(pt0)
                 # Change the pt3d information
                 s.pt3dchange(i, *pt, s.diam3d(i))
+
     # Return the product function
     return builder
 
@@ -54,9 +56,5 @@ def get_rotation_matrix(v0, v):
 
     # Rodrigues' formula
     K = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
-    R = (
-        I
-        + math.sin(alpha) * K
-        + (1 - math.cos(alpha)) * np.linalg.matrix_power(K, 2)
-    )
+    R = I + math.sin(alpha) * K + (1 - math.cos(alpha)) * np.linalg.matrix_power(K, 2)
     return R

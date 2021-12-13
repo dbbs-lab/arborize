@@ -10,30 +10,30 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-     name='arborize',
-     version=__version__,
-     author="Robin De Schepper",
-     author_email="robingilbert.deschepper@unipv.it",
-     description="Write descriptions for NEURON cell models in an Arbor-like manner.",
-     long_description=long_description,
-     long_description_content_type="text/markdown",
-     url="https://github.com/dbbs-lab/arborize",
-     license='GPLv3',
-     packages=setuptools.find_packages(),
-     classifiers=[
-         "Programming Language :: Python :: 3",
-         "Operating System :: OS Independent",
-     ],
-     install_requires=[
+    name="arborize",
+    version=__version__,
+    author="Robin De Schepper",
+    author_email="robingilbert.deschepper@unipv.it",
+    description="Write descriptions for NEURON cell models in an Arbor-like manner.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/dbbs-lab/arborize",
+    license="GPLv3",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+    ],
+    install_requires=[
         "nrn-glia>=0.4",
         "nrn-patch>=3.0.0",
         "nrn-subprocess>=1.3.4",
         "efel",
         "numpy",
-        "errr"
-     ],
-     extras_require={
-      "dev": ["sphinx", "sphinx_rtd_theme", "pesticide"],
-      "beam": ["ndsb"],
-     }
- )
+        "errr",
+    ],
+    extras_require={
+        "dev": ["sphinx", "sphinx_rtd_theme", "pesticide"],
+        "beam": ["ndsb"],
+    },
+)
