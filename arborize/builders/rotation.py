@@ -38,21 +38,9 @@ def get_rotation_matrix(v0, v):
     alpha = np.arccos(np.dot(v0, v))
 
     if math.isclose(alpha, 0.0):
-        report(
-            "Rotating morphology between parallel orientation vectors, {} and {}!".format(
-                v0, v
-            ),
-            level=3,
-        )
         # We will not rotate the morphology, thus R = I
         return I
     elif math.isclose(alpha, np.pi):
-        report(
-            "Rotating morphology between antiparallel orientation vectors, {} and {}!".format(
-                v0, v
-            ),
-            level=3,
-        )
         # We will rotate the morphology of 180° around a vector orthogonal to the starting
         # vector v0 (the same would be if we take the ending vector v) We set the first
         # and second components to 1; the third one is obtained to have the scalar product
