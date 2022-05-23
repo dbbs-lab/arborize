@@ -9,6 +9,7 @@ _make_tree(
             SynapseNotDefinedError=_e(),
         ),
         ModelError=_e(
+            ModelInheritanceError=_e(),
             ModelClassError=_e(
                 MechanismNotPresentError=_e("mechanism"),
                 MechanismNotFoundError=_e("mechanism", "variant"),
@@ -17,7 +18,7 @@ _make_tree(
                 IonAttributeError=_e(),
                 AbstractError=_e(),
             ),
-            MorphologyBuilderError=_e(),
+            NullArgumentError=_e(),
         ),
         NotRecordingError=_e(),
     ),
