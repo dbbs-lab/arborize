@@ -12,6 +12,9 @@ from contextlib import contextmanager
 from .exceptions import *
 import numpy as np
 import functools
+import inspect
+from pathlib import Path
+from glob import glob
 
 try:
     functools.cache
@@ -28,6 +31,10 @@ import abc
 
 
 class Argument:
+    def __init_subclass__(cls, nullable=False, id_only=False, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._nullable = nullable
+
     @abc.abstractmethod
     def is_obj(self, obj):
         pass
@@ -36,8 +43,48 @@ class Argument:
     def is_id(self, obj):
         pass
 
+    def __set_name__(self, cls, name):
+        if not hasattr(cls, "_model_argnames"):
+            cls._model_argnames = {}
+        cls._model_argnames[self] = name
 
-class MorphologyArgument(Argument):
+    def __set__(self, instance, value):
+        name = self.get_name(instance)
+        print("elloset", instance, name, value)
+        if value is None:
+            if not self._nullable:
+                raise NullArgumentError(f"{name} argument may not be `None`.")
+            else:
+                obj = None
+        elif self.is_obj(value):
+            obj = value
+        elif self.is_id(value):
+            obj = self.retrieve(value)
+        else:
+            raise ArgumentError(f"Given {name} not a {name} or id.")
+        setattr(instance, f"_{name}", obj)
+
+    def __get__(self, instance, owner):
+        if owner is None:
+            return self
+
+
+    def get_name(self, instance):
+        return instance._model_argnames[self]
+
+
+class MorphologyArgument(Argument, nullable=True):
+    def __init__(self, obj_or_file=None, /):
+        if obj_or_file is None:
+            print("No default spec")
+            self._obj = None
+        elif self.is_id(obj_or_file):
+            self._obj = self.retrieve(obj_or_file)
+        elif self.is_obj(obj_or_file):
+            self._obj = obj_or_file
+        else:
+            raise ValueError(f"{type(obj_or_file)} not a morphology or file.")
+
     def is_obj(self, obj):
         if not hasattr(obj, "branches"):
             return False
@@ -48,7 +95,35 @@ class MorphologyArgument(Argument):
         return hasattr(branch, "points") and hasattr(branch, "labels")
 
     def is_id(self, obj):
-        return isinstance(obj, str)
+        return isinstance(obj, str) or isinstance(obj, Path)
+
+    def retrieve(self, value):
+        from bsb.morphologies import Morphology
+
+        file = str(value)
+        return Morphology.from_file(file)
+
+    def __get__(self, instance, owner):
+        if instance._morphology is not None:
+            return instance._morphology
+        else:
+            if self._obj is None:
+                cls = type(instance)
+                path = Path(inspect.getfile(cls))
+                fallback = str(path.parent / "morphologies" / cls.__name__) + "*"
+                matches = glob(fallback)
+                if not matches:
+                    raise RuntimeError("No morphology provided or detected.")
+                elif len(matches) > 1:
+                    raise RuntimeError("Multiple fallback morphologies detected. Provide strictly 1.")
+                from bsb.morphologies import Morphology
+
+                match = matches[0]
+                if match.endswith("swc"):
+                    self._obj = Morphology.from_swc(match)
+                else:
+                    self._obj = Morphology.from_file(match)
+            return self._obj
 
 
 class MechanismSpec(Argument):
@@ -90,18 +165,16 @@ class NeuronModel:
     sections, insert all mechanisms and define all synapses using the appropriate
     class variables. See the :doc:`/neuron_model`
     """
+    morphology = MorphologyArgument()
 
-    def __init__(self, position=None, morphology=0, candidate=0, synapses=0):
-        if type(self)._abstract:
-            raise NotImplementedError(
-                f"Can't instantiate abstract NeuronModel {self.__class__.__name__}"
-            )
+    def __init__(self):
+        super().__init__()
         # Initialize variables
-        self.position = np.array(position if position is not None else [0.0, 0.0, 0.0])
         self.sections = []
         self._nrn_section_map = dict()
 
         # Construct cell
+        print(self.morphology)
         self.get_morphology_builder(morphology)(self)
         # Do labelling of sections into special sections
         self._apply_labels()
@@ -113,19 +186,60 @@ class NeuronModel:
             for section in self.sections:
                 self._init_section(section)
 
-        # Call post init method so that child classes can easily do stuff after init.
-        self.__post_init__()
+    @classmethod
+    def get_model_arguments(cls):
+        args = {}
+        for pcls in reversed(cls.__mro__):
+            print("kv", dict((k, v) for k, v in vars(pcls).items() if isinstance(v, Argument)))
+            args.update((k, v) for k, v in vars(pcls).items() if isinstance(v, Argument))
+        return args
 
-    def __init_subclass__(cls, abstract=False, **kwargs):
+    def __init_subclass__(cls, **kwargs):
+        print("presc")
         super().__init_subclass__(**kwargs)
-        cls._abstract = abstract
-        if not hasattr(cls, "section_types"):
-            cls.section_types = {}
-        for default_type in ["soma", "dendrites", "axon"]:
-            if default_type not in cls.section_types:
-                cls.section_types[default_type] = {}
-        if not hasattr(cls, "glia_package"):
-            cls.glia_package = None
+        print("postsc")
+        args = {k: v for k, v in cls.get_model_arguments().items()}
+        cls._model_args = args
+        if not hasattr(cls, "_model_argnames"):
+            cls._model_argnames = {}
+        if "__new__" in cls.__dict__:
+            raise ModelInheritanceError(
+                "Arborize models can't declare their own `__new__` methods."
+                + " Use `__init__` instead, or compose this model from another class"
+                + " that has a `__new__` method."
+            )
+        # Create the class init function, with correct handling of composition/inheritance
+        argstr = ', '.join(f"{a}=None" for a in args.keys())
+        if argstr:
+            argstr = ", *args, " + argstr
+        # Compile inside of a class closure so that we can modify the `__closure__`, so
+        # that `super()` uses `cls`'s MRO
+        flines = ["class _CompiledClosure:"]
+        flines.append(f" def __new__(cls{argstr}, **kwargs):")
+        # Call the super's new with remaining args
+        flines.append("  args = vars().get('args', ())")
+        flines.append("  self = super().__new__(cls, *args, **kwargs)")
+        # Set all the given arguments
+        for argkey, arg in args.items():
+            flines.append(f"  self.{argkey} = {argkey}")
+        flines.append("  og = cls.__init__")
+        flines.append("  def rearg_init(*iargs, **ikwargs):")
+        flines.append("   print('reinstating init calling with filtered args', args, kwargs)")
+        flines.append("   cls.__init__ = og")
+        flines.append("   self.__init__(*args, **kwargs)")
+        flines.append("  cls.__init__ = rearg_init")
+        flines.append("  print('mod init', cls.__init__ is rearg_init)")
+        flines.append("  return self")
+        hook = dict()
+        # Compile and execute the function string
+        exec(compile("\n".join(flines), "arborize.core.NeuronModel", "exec"), globals(), hook)
+        # Fish out our compiled function from its class closure
+        fish = hook["_CompiledClosure"].__new__
+        # Patch the `super` mechanism as mentioned before
+        fish.__closure__[0].cell_contents = cls
+        # Set the function on the class.
+        cls.__new__ = fish
+        print("endsc")
 
     def __getattr__(self, attribute):
         if attribute == "Vm":
@@ -133,8 +247,8 @@ class NeuronModel:
                 "Trying to read Vm of a cell that is not recording."
                 + " Use `.record_soma()` to enable recording of the soma."
             )
-        if attribute in self.section_types:
-            return [s for s in self.sections if attribute in s.labels]
+        # if attribute in self.section_types:
+        #     return [s for s in self.sections if attribute in s.labels]
         return super().__getattribute__(attribute)
 
     @classmethod
