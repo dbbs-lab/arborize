@@ -24,8 +24,35 @@ import glia as g
 from .synapse import Synapse
 import glia.exceptions
 
-p.load_file("stdlib.hoc")
-p.load_file("import3d.hoc")
+import abc
+
+
+class Argument:
+    @abc.abstractmethod
+    def is_obj(self, obj):
+        pass
+
+    @abc.abstractmethod
+    def is_id(self, obj):
+        pass
+
+
+class MorphologyArgument(Argument):
+    def is_obj(self, obj):
+        if not hasattr(obj, "branches"):
+            return False
+        branches = obj.branches
+        if len(branches) == 0:
+            return True
+        branch = branches[0]
+        return hasattr(branch, "points") and hasattr(branch, "labels")
+
+    def is_id(self, obj):
+        return isinstance(obj, str)
+
+
+class MechanismSpec(Argument):
+    pass
 
 # Overwrite initialization of Sections in this file.
 class Section(Section):
