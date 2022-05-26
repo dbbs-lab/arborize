@@ -101,6 +101,8 @@ class MorphologyArgument(Argument, nullable=True):
         from bsb.morphologies import Morphology
 
         file = str(value)
+        if not os.path.exists(file):
+            raise ArgumentError(f"Path '{file}' given as morphology id does not exist.")
         return Morphology.from_file(file)
 
     def __get__(self, instance, owner):
