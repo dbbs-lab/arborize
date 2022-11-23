@@ -1,25 +1,12 @@
 from errr.tree import make_tree as _make_tree, exception as _e
+from typing import Type
 
 _make_tree(
     globals(),
-    ArborizeError=_e(
-        ConnectionError=_e(
-            AmbiguousSynapseError=_e(),
-            SynapseNotPresentError=_e(),
-            SynapseNotDefinedError=_e(),
-        ),
-        ModelError=_e(
-            ModelInheritanceError=_e(),
-            ModelClassError=_e(
-                MechanismNotPresentError=_e("mechanism"),
-                MechanismNotFoundError=_e("mechanism", "variant"),
-                LabelNotDefinedError=_e(),
-                SectionAttributeError=_e(),
-                IonAttributeError=_e(),
-                AbstractError=_e(),
-            ),
-            NullArgumentError=_e(),
-        ),
-        NotRecordingError=_e(),
-    ),
+    ArborizeError=_e(SchematicError=_e(ConstructionError=_e(), FrozenError=_e())),
 )
+
+ArborizeError: Type[Exception]
+SchematicError: Type[ArborizeError]
+ConstructionError: Type[SchematicError]
+FrozenError: Type[SchematicError]
