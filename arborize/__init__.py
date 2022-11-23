@@ -1,4 +1,14 @@
-from .core import *
-from .synapse import Synapse
+from .builders import *
+from .schematics import *
+from .definitions import (
+    CableType,
+    CableProperties,
+    Ion,
+    Mechanism,
+    is_mech_id,
+    ModelDefinition,
+    define_model,
+)
+from .schematic import Schematic
 
-__version__ = "2.0.3"
+__version__ = "4.0.0a0"
