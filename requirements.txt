@@ -1,5 +1,5 @@
 sphinx==2.3.1
 nrn-patch==3.0.0b1
 nrn-glia==0.3.8
-numpy==1.19.4
+numpy==1.22.0
 errr==1.0.0
