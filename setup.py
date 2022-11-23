@@ -25,15 +25,12 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        "nrn-glia>=0.4",
-        "nrn-patch>=3.0.0",
-        "nrn-subprocess>=1.3.4",
-        "efel",
         "numpy",
-        "errr",
+        "errr>=1.1.1",
     ],
     extras_require={
-        "dev": ["sphinx", "sphinx_rtd_theme", "pesticide"],
-        "beam": ["ndsb"],
+        "neuron": ["nrn-patch>=4.0.0a0", "nrn-glia>=4.0.0a0"],
+        "arbor": ["arbor>=0.8"],
+        "dev": ["sphinx", "sphinx_rtd_theme"],
     },
 )
