@@ -108,3 +108,6 @@ i686cygwin/
 nrnmech.dll
 x86_64/
 a.out
+
+# IDE
+.idea/
