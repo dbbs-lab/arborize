@@ -16,7 +16,7 @@ class NeuronModel:
 
     @property
     def sections(self) -> Sequence["Section"]:
-        return self.sections
+        return self._sections
 
     @property
     def locations(self) -> Mapping["Location", "LocationAccessor"]:
@@ -62,6 +62,7 @@ def _build_branch(branch):
     from patch import p
 
     section = p.Section()
+    section.labels = [*branch.labels]
     apply_geometry(section, branch.points)
     apply_cable_properties(section, branch.definition.cable)
     mechs = apply_mech_definitions(section, branch.definition.mechs)
