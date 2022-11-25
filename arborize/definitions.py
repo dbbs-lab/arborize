@@ -61,9 +61,9 @@ class Mechanism:
 
 def is_mech_id(mech_id):
     return str(mech_id) == mech_id or (
-            tuple(mech_id) == mech_id
-            and 0 < len(mech_id) < 4
-            and all(str(part) == part for part in mech_id)
+        tuple(mech_id) == mech_id
+        and 0 < len(mech_id) < 4
+        and all(str(part) == part for part in mech_id)
     )
 
 
@@ -91,7 +91,7 @@ class CableType:
 
     @staticmethod
     def anchor(
-            defs: typing.Iterable["CableType"], use_defaults: bool = False
+        defs: typing.Iterable["CableType"], use_defaults: bool = False
     ) -> "CableType":
         def_ = CableType() if not use_defaults else CableType.default()
         for def_right in defs:
@@ -114,7 +114,7 @@ class CableType:
     @classmethod
     def default(cls):
         default = cls()
-        default.cable.Ra = 20
+        default.cable.Ra = 35.4
         return default
 
     def add_ion(self, key: str, ion: Ion):
