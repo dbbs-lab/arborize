@@ -1,10 +1,12 @@
 import dataclasses
 import typing
+from .exceptions import ModelDefinitionError
 
 if typing.TYPE_CHECKING:
     from .parameter import Parameter
 
-MechId = typing.Union[str, tuple[str, str], tuple[str, str, str]]
+MechIdTuple = typing.Union[tuple[str], tuple[str, str], tuple[str, str, str]]
+MechId = typing.Union[str, MechIdTuple]
 
 
 class Copy:
@@ -56,31 +58,51 @@ class Mechanism:
             self.parameters[key] = value
 
     def copy(self):
-        return type(self)(self.parameters.copy())
+        return Mechanism(self.parameters.copy())
+
+
+class Synapse(Mechanism):
+    mech_id: MechIdTuple
+
+    def __init__(self, parameters, mech_id: MechId):
+        super().__init__(parameters)
+        self.mech_id = to_mech_id(mech_id)
+
+    def copy(self):
+        return Synapse(self.parameters.copy(), to_mech_id(self.mech_id))
 
 
 def is_mech_id(mech_id):
     return str(mech_id) == mech_id or (
-        tuple(mech_id) == mech_id
-        and 0 < len(mech_id) < 4
-        and all(str(part) == part for part in mech_id)
+            tuple(mech_id) == mech_id
+            and 0 < len(mech_id) < 4
+            and all(str(part) == part for part in mech_id)
     )
+
+
+def to_mech_id(mech_id: MechId) -> MechIdTuple:
+    if mech_id is None:
+        raise ValueError("Mech id may not be None")
+    return (mech_id,) if not isinstance(mech_id, tuple) else tuple(mech_id)
 
 
 class CableType:
     cable: CableProperties
-    mechs: dict["MechId", "Mechanism"]
+    mechs: dict[MechId, Mechanism]
     ions: dict[str, Ion]
+    synapses: dict[str, Synapse]
 
     def __init__(self):
         self.cable = CableProperties()
         self.mechs = {}
         self.ions = {}
+        self.synapses = {}
 
     def copy(self):
         def_ = CableType()
         def_.cable = self.cable.copy()
         def_.mechs = {k: v.copy() for k, v in self.mechs.items()}
+        def_.synapses = {k: v.copy() for k, v in self.synapses.items()}
         return def_
 
     def set(self, param: "Parameter"):
@@ -91,9 +113,25 @@ class CableType:
 
     @staticmethod
     def anchor(
-        defs: typing.Iterable["CableType"], use_defaults: bool = False
+            defs: typing.Iterable["CableType"],
+            synapses: dict[str, Synapse] = None,
+            use_defaults: bool = False,
     ) -> "CableType":
         def_ = CableType() if not use_defaults else CableType.default()
+        if synapses is not None:
+            # We need to merge the local synapses on top of the global ones,
+            # without mutating the global dictionary. So we:
+            # - Create a new cable type for the global synapses
+            globaldef = CableType()
+            # - Add the synapses to it
+            for key, value in synapses.items():
+                globaldef.add_synapse(key, value)
+            # - Merge the local synapses over it
+            globaldef._mergedict(globaldef.synapses, def_.synapses)
+            # - Transfer the result to our def.
+            def_.synapses = globaldef.synapses
+        # Merge the definitions onto our def. Each merge overwrites our values, with the
+        # last item in the list having the final say.
         for def_right in defs:
             if def_right is None:
                 continue
@@ -102,11 +140,15 @@ class CableType:
 
     def merge(self, def_right: "CableType"):
         self.cable.merge(def_right.cable)
-        for key, mech in def_right.mechs.items():
-            if key in self.mechs:
-                self.mechs[key].merge(def_right.mechs[key])
+        self._mergedict(self.mechs, def_right.mechs)
+        self._mergedict(self.synapses, def_right.synapses)
+
+    def _mergedict(self, dself, dother):
+        for key, value in dother.items():
+            if key in dself:
+                dself[key].merge(dother[key])
             else:
-                self.mechs[key] = mech.copy()
+                dself[key] = value.copy()
 
     def assert_(self):
         self.cable.assert_()
@@ -122,18 +164,26 @@ class CableType:
             raise KeyError(f"An ion named '{key}' already exists.")
         self.ions[key] = ion
 
-    def add_mech(self, mech_id: "MechId", mech: Mechanism):
+    def add_mech(self, mech_id: MechId, mech: Mechanism):
         if not is_mech_id(mech_id):
             raise ValueError(f"'{mech_id}' is not a valid mechanism id.")
         if mech_id in self.mechs:
             raise KeyError(f"A mechanism with id '{mech_id}' already exists.")
         self.mechs[mech_id] = mech
 
+    def add_synapse(self, label: typing.Union[str, MechId], synapse: Synapse):
+        mech_id = synapse.mech_id or to_mech_id(label)
+        if not is_mech_id(mech_id):
+            raise ValueError(f"'{mech_id}' is not a valid mechanism id.")
+        if label in self.synapses:
+            raise KeyError(f"A synapse with label '{label}' already exists.")
+        self.synapses[label] = synapse
+
 
 class ModelDefinition:
     def __init__(self, use_defaults=False):
         self._cable_types: dict[str, CableType] = {}
-        self._synapse_types: mechdict[MechId, Mechanism] = mechdict()
+        self._synapse_types: dict[str, Synapse] = {}
         self.use_defaults = use_defaults
 
     def copy(self):
@@ -155,12 +205,13 @@ class ModelDefinition:
             raise KeyError(f"Cable type {label} already exists.")
         self._cable_types[label] = def_
 
-    def add_synapse_type(self, mech_id: "MechId", synapse: "Mechanism"):
+    def add_synapse_type(self, label: typing.Union[str, MechId], synapse: Synapse):
+        mech_id = synapse.mech_id or to_mech_id(label)
         if not is_mech_id(mech_id):
-            raise ValueError(f"'{mech_id}' is not a valid synapse mechanism id.")
-        if mech_id in self._synapse_types:
-            raise KeyError(f"Synapse type {mech_id} already exists.")
-        self._synapse_types[mech_id] = synapse
+            raise ValueError(f"'{mech_id}' is not a valid synapse mechanism.")
+        if label in self._synapse_types:
+            raise KeyError(f"Synapse type {label} already exists.")
+        self._synapse_types[label] = synapse
 
 
 def define_model(templ_or_def, def_dict=None, /, use_defaults=False):
@@ -179,29 +230,51 @@ def _parse_dict_def(def_dict):
         ct = _parse_cable_type(def_input)
         model.add_cable_type(label, ct)
     for label, def_input in def_dict.get("synapse_types", {}).items():
-        st = _parse_mech_def(def_input)
+        st = _parse_synapse_def(label, def_input)
         model.add_synapse_type(label, st)
     return model
 
 
-def _parse_cable_type(def_input):
-    def_ = CableType()
-    for k, v in def_input.get("cable", {}).items():
-        setattr(def_.cable, k, v)
-    for k, v in def_input.get("ions", {}).items():
-        def_.add_ion(k, _parse_ion_def(v))
-    for mech_id, v in def_input.get("mechanisms", {}).items():
-        def_.add_mech(mech_id, _parse_mech_def(v))
-    return def_
+def _parse_cable_type(cable_dict):
+    try:
+        def_ = CableType()
+        for k, v in cable_dict.get("cable", {}).items():
+            setattr(def_.cable, k, v)
+        for k, v in cable_dict.get("ions", {}).items():
+            def_.add_ion(k, _parse_ion_def(v))
+        for mech_id, v in cable_dict.get("mechanisms", {}).items():
+            def_.add_mech(mech_id, _parse_mech_def(v))
+        for label, v in cable_dict.get("synapses", {}).items():
+            def_.add_synapse(label, _parse_synapse_def(label, v))
+        return def_
+    except Exception:
+        raise ModelDefinitionError(f"{cable_dict} is not a valid cable type definition.")
 
 
 def _parse_ion_def(ion_dict):
-    return Ion(**ion_dict)
+    try:
+        return Ion(**ion_dict)
+    except Exception:
+        raise ModelDefinitionError(f"{ion_dict} is not a valid ion definition.")
 
 
 def _parse_mech_def(mech_dict):
-    mech = Mechanism(mech_dict.copy())
-    return mech
+    try:
+        mech = Mechanism(mech_dict.copy())
+        return mech
+    except Exception:
+        raise ModelDefinitionError(f"{mech_dict} is not a valid mechanism definition.")
+
+
+def _parse_synapse_def(key, synapse_dict):
+    try:
+        synapse = Synapse(
+            synapse_dict.get("parameters", synapse_dict).copy(),
+            synapse_dict.get("mechanism", key),
+        )
+        return synapse
+    except Exception as e:
+        raise ModelDefinitionError(f"{synapse_dict} is not a valid synapse definition.")
 
 
 class mechdict(dict):
