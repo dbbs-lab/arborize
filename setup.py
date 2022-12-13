@@ -29,7 +29,7 @@ setuptools.setup(
         "errr>=1.1.1",
     ],
     extras_require={
-        "neuron": ["nrn-patch>=4.0.0a0", "nrn-glia>=4.0.0a0"],
+        "neuron": ["nrn-patch==4.0.0a1", "nrn-glia==4.0.0a1"],
         "arbor": ["arbor>=0.8"],
         "dev": ["sphinx", "sphinx_rtd_theme"],
     },
