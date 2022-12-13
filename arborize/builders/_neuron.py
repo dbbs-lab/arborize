@@ -1,7 +1,13 @@
 import dataclasses
+import random
+import typing
 from collections import deque
 from typing import Mapping, Sequence, TYPE_CHECKING, Union
-from ..definitions import CableProperties, MechId, Mechanism, mechdict
+
+import errr
+
+from ..definitions import CableProperties, MechId, Mechanism, mechdict, to_mech_id
+from ..exceptions import ConstructionError
 
 if TYPE_CHECKING:
     from ..schematic import Location, Schematic, TrueBranch
@@ -9,10 +15,10 @@ if TYPE_CHECKING:
 
 
 class NeuronModel:
-    def __init__(self, sections, locations, synapse_types):
+    def __init__(self, sections, locations, cable_types):
         self._sections: Sequence["Section"] = sections
         self._locations: dict["Location", "Section"] = locations
-        self._synapse_types: mechdict["MechId", "Mechanism"] = synapse_types
+        self._cable_types = cable_types
 
     @property
     def sections(self) -> Sequence["Section"]:
@@ -22,15 +28,34 @@ class NeuronModel:
     def locations(self) -> Mapping["Location", "LocationAccessor"]:
         return self._locations
 
-    def insert_receiver(self, synapse: "MechId", loc: "Location", attributes=None):
+    def insert_synapse(
+            self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None
+    ):
         import glia
 
-        mech_def = self._synapse_types.get(synapse)
-        la = self._locations.get(loc)
-        mech = glia.insert(la.section, *synapse)
-        mech.set(mech_def.parameters)
+        la = self._locations[loc]
+        synapses = la.section.synapse_types
+        try:
+            synapse = synapses[label]
+        except KeyError:
+            raise ConstructionError(
+                f"Synapse type '{label}' not present on branch with labels "
+                f"{errr.quotejoin(la.section.labels)}. Choose from: "
+                f"{errr.quotejoin(synapses)}"
+            )
+        mech = glia.insert(la.section, *synapse.mech_id)
+        mech.set(synapse.parameters)
 
         return mech
+
+    def get_random_location(self):
+        return random.choice([*self._locations.keys()])
+
+    def __getattr__(self, item):
+        if item in self._cable_types:
+            return [s for s in self._sections if item in s.labels]
+        else:
+            return super().__getattribute__(item)
 
 
 def neuron_build(schematic: "Schematic"):
@@ -55,7 +80,7 @@ def neuron_build(schematic: "Schematic"):
             section.connect(branchmap[branch.parent])
         if branch.children:
             stack.extend((child, branch) for child in reversed(branch.children))
-    return NeuronModel(sections, locations, schematic.get_synapse_types())
+    return NeuronModel(sections, locations, [*schematic.get_cable_types().keys()])
 
 
 def _build_branch(branch):
@@ -66,6 +91,7 @@ def _build_branch(branch):
     apply_geometry(section, branch.points)
     apply_cable_properties(section, branch.definition.cable)
     mechs = apply_mech_definitions(section, branch.definition.mechs)
+    section.synapse_types = branch.definition.synapses
     return section, mechs
 
 
