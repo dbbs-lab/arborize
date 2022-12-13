@@ -112,11 +112,28 @@ class Schematic:
                 ) from None
             self._flatten_branches(branch.children)
 
-    def _makedef(self, labels) -> CableType:
+    def _makedef(self, labels: typing.Sequence[str]) -> CableType:
+        insert_index = [*self._definition._cable_types.keys()].index
+        len_ = len(self._definition._cable_types)
+
+        def label_order(lbl):
+            try:
+                insert = insert_index(lbl)
+            except ValueError:
+                insert = -1
+            return (insert, lbl)
+
         return CableType.anchor(
-            (self._definition._cable_types.get(label) for label in labels),
+            (
+                self._definition._cable_types.get(label)
+                for label in sorted(labels, key=label_order)
+            ),
+            synapses=self._definition.get_synapse_types(),
             use_defaults=self.definition.use_defaults,
         )
+
+    def get_cable_types(self):
+        return self._definition.get_cable_types()
 
     def get_synapse_types(self):
         return self._definition.get_synapse_types()
