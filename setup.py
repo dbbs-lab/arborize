@@ -27,6 +27,7 @@ setuptools.setup(
     install_requires=[
         "numpy",
         "errr>=1.1.1",
+        "morphio>=3.3.3"
     ],
     extras_require={
         "neuron": ["nrn-patch==4.0.0a1", "nrn-glia==4.0.0a1"],

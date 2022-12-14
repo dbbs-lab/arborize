@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING
 from ..schematic import Schematic
 import itertools
 
