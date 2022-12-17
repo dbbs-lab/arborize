@@ -3,7 +3,7 @@ import typing
 from collections import defaultdict
 from typing import Optional, Union
 
-from .exceptions import FrozenError
+from .exceptions import ConstructionError, FrozenError
 
 from .definitions import CableType, ModelDefinition
 
