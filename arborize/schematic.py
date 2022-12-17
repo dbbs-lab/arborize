@@ -1,6 +1,6 @@
 import dataclasses
 import typing
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Optional, Union
 
 from .exceptions import FrozenError
@@ -26,6 +26,17 @@ class Schematic:
         self._definition: ModelDefinition = ModelDefinition()
         self.virtual_branches: list["VirtualBranch"] = []
         self.roots: list["TrueBranch"] = []
+
+    def __iter__(self) -> typing.Iterator["TrueBranch"]:
+        stack: deque["TrueBranch"] = deque(self.roots)
+        while True:
+            try:
+                branch = stack.pop()
+            except IndexError:
+                break
+            yield branch
+            if branch.children:
+                stack.extend(reversed(branch.children))
 
     @property
     def definition(self):

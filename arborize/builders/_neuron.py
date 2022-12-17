@@ -29,7 +29,7 @@ class NeuronModel:
         return self._locations
 
     def insert_synapse(
-            self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None
+        self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None
     ):
         import glia
 
@@ -61,16 +61,9 @@ class NeuronModel:
 def neuron_build(schematic: "Schematic"):
     schematic.freeze()
     branchmap = {}
-    stack: deque[tuple["TrueBranch", Union["TrueBranch", None]]] = deque(
-        (branch, None) for branch in schematic.roots
-    )
     sections = []
     locations = {}
-    while True:
-        try:
-            branch, parent = stack.pop()
-        except IndexError:
-            break
+    for branch in schematic:
         section, mechs = _build_branch(branch)
         for point in branch.points:
             locations[point.loc] = LocationAccessor(point.loc, section, mechs)
@@ -78,8 +71,6 @@ def neuron_build(schematic: "Schematic"):
         branchmap[branch] = section
         if branch.parent:
             section.connect(branchmap[branch.parent])
-        if branch.children:
-            stack.extend((child, branch) for child in reversed(branch.children))
     return NeuronModel(sections, locations, [*schematic.get_cable_types().keys()])
 
 
