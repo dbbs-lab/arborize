@@ -39,13 +39,6 @@ def file_schematic(
 
     morpho = morphio.Morphology(os.fspath(file_like))
     schematic = Schematic()
-    print(morpho.soma, dir(morpho.soma))
-    print(morpho.root_sections, dir(morpho.root_sections[0]))
-    print(
-        len([*morpho.root_sections[0].iter()]),
-        sum(len([*i.iter()]) for i in morpho.root_sections),
-    )
-    morpho.root_sections
     branches = [
         morpho.soma,
         *itertools.chain.from_iterable(s.iter() for s in morpho.root_sections),
