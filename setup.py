@@ -24,13 +24,9 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    install_requires=[
-        "numpy",
-        "errr>=1.1.1",
-        "morphio>=3.3.3"
-    ],
+    install_requires=["numpy", "errr>=1.2.0", "morphio>=3.3.3"],
     extras_require={
-        "neuron": ["nrn-patch==4.0.0a1", "nrn-glia==4.0.0a1"],
+        "neuron": ["nrn-patch==4.0.0a1", "nrn-glia[neuron]==4.0.0a1"],
         "arbor": ["arbor>=0.8"],
         "dev": ["sphinx", "sphinx_rtd_theme"],
     },
