@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 def bsb_schematic(
     morphology: "Morphology", definitions: Optional["ModelDefinition"] = None
 ) -> Schematic:
-    schematic = Schematic()
+    schematic = Schematic(name=morphology.meta.get("name"))
     branches: list["Branch"] = [*morphology.branches]
     endpoints = []
     for bid, branch in enumerate(branches):

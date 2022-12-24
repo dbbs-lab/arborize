@@ -2,21 +2,17 @@ import os
 import re
 import tempfile
 import itertools
-import warnings
-from typing import Optional, TYPE_CHECKING, Union, TextIO
-
-from morphio import SomaType
-
-from ..schematic import Schematic
-
-if TYPE_CHECKING:
-    from ..schematic import ModelDefinition
+from typing import Optional, Union, TextIO
+from morphio import SomaType, Morphology
+from ..schematic import Schematic, ModelDefinition
 
 
 def file_schematic(
     file_like: Union["str", "os.PathLike", TextIO],
     definitions: Optional["ModelDefinition"] = None,
     fname: str = None,
+    *,
+    name=None,
 ) -> Schematic:
     if hasattr(file_like, "read"):
         if not file_like.name and not fname:
@@ -31,6 +27,8 @@ def file_schematic(
         os.close(handle)
         try:
             with open(abspath, "w") as f:
+                if file_like.seekable():
+                    file_like.seek(0)
                 f.write(file_like.read())
             return file_schematic(abspath, definitions)
         finally:
@@ -38,7 +36,7 @@ def file_schematic(
     import morphio
 
     morpho = morphio.Morphology(os.fspath(file_like))
-    schematic = Schematic()
+    schematic = Schematic(name=name)
     branches = [
         morpho.soma,
         *itertools.chain.from_iterable(s.iter() for s in morpho.root_sections),
@@ -48,21 +46,21 @@ def file_schematic(
         mid = getattr(branch, "id", -1) + 1
         if bid != mid:
             raise AssertionError("MorphIO deviated from depth-first order.")
-        parent = None if getattr(branch, "is_root", True) else branch.parent
+        parent = _get_parent(morpho, branch)
         if not len(branch.points):
             true_parent = None
             while True:
                 if parent is None:
                     break
                 elif len(parent.points):
-                    true_parent = endpoints[parent.id + 1]
+                    true_parent = endpoints[getattr(parent, "id", -1) + 1]
                     break
                 parent = None if branch.is_root else branch.parent
             schematic.create_empty()
             endpoints.append(true_parent)
         else:
             if parent is not None:
-                endpoint = endpoints[parent.id + 1]
+                endpoint = endpoints[getattr(parent, "id", -1) + 1]
             else:
                 endpoint = None
             if isinstance(branch.type, SomaType):
@@ -81,3 +79,13 @@ def file_schematic(
     if definitions is not None:
         schematic.definition = definitions
     return schematic
+
+
+def _get_parent(morpho: Morphology, branch):
+    # Does the morphology have a soma? If so, the roots are connected to it.
+    root_parent = morpho.soma if morpho.soma else None
+    if hasattr(branch, "is_root"):
+        return root_parent if branch.is_root else branch.parent
+    else:
+        # The soma never has a parent
+        return None
