@@ -6,18 +6,20 @@ from typing import Mapping, Sequence, TYPE_CHECKING, Union
 
 import errr
 
+from _util import get_location_name, get_arclengths
 from ..definitions import CableProperties, MechId, Mechanism, mechdict, to_mech_id
 from ..exceptions import ConstructionError
 
 if TYPE_CHECKING:
     from ..schematic import Location, Schematic, TrueBranch
     from glia._glia import MechAccessor
+    from patch.objects import PointProcess, Section
 
 
 class NeuronModel:
     def __init__(self, sections, locations, cable_types):
         self._sections: Sequence["Section"] = sections
-        self._locations: dict["Location", "Section"] = locations
+        self._locations: dict["Location", "LocationAccessor"] = locations
         self._cable_types = cable_types
 
     @property
@@ -28,9 +30,12 @@ class NeuronModel:
     def locations(self) -> Mapping["Location", "LocationAccessor"]:
         return self._locations
 
+    def filter_sections(self, labels: list[str]):
+        return [s for s in self.sections if any(lbl in labels for lbl in s.labels)]
+
     def insert_synapse(
-        self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None
-    ):
+        self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None, sx=0.5
+    ) -> "PointProcess":
         import glia
 
         la = self._locations[loc]
@@ -42,11 +47,25 @@ class NeuronModel:
                 f"Synapse type '{label}' not present on branch with labels "
                 f"{errr.quotejoin(la.section.labels)}. Choose from: "
                 f"{errr.quotejoin(synapses)}"
-            )
-        mech = glia.insert(la.section, *synapse.mech_id)
+            ) from None
+        mech = glia.insert(la.section, *synapse.mech_id, x=la.arc(sx))
         mech.set(synapse.parameters)
 
         return mech
+
+    def insert_receiver(
+        self,
+        gid: int,
+        label: typing.Union[str, "MechId"],
+        loc: "Location",
+        attributes=None,
+        sx=0.5,
+    ):
+        synapse = self.insert_synapse(label, loc, attributes, sx)
+        return p.ParallelCon(gid, synapse)
+
+    def insert_transmitter(self, gid: int, loc: "Location"):
+        return p.ParallelCon(self._locations[loc], gid)
 
     def get_random_location(self):
         return random.choice([*self._locations.keys()])
@@ -60,13 +79,20 @@ class NeuronModel:
 
 def neuron_build(schematic: "Schematic"):
     schematic.freeze()
+    name = schematic.create_name()
     branchmap = {}
     sections = []
     locations = {}
     for branch in schematic:
-        section, mechs = _build_branch(branch)
-        for point in branch.points:
-            locations[point.loc] = LocationAccessor(point.loc, section, mechs)
+        bname = f"{name}_{get_location_name(branch.points)}"
+        alens = get_arclengths(branch.points)
+        section, mechs = _build_branch(branch, bname)
+        for i, point in enumerate(branch.points):
+            try:
+                arcpair = (alens[i], alens[i + 1])
+            except IndexError:
+                arcpair = (1, 1)
+            locations[point.loc] = LocationAccessor(point.loc, section, mechs, arcpair)
         sections.append(section)
         branchmap[branch] = section
         if branch.parent:
@@ -74,10 +100,10 @@ def neuron_build(schematic: "Schematic"):
     return NeuronModel(sections, locations, [*schematic.get_cable_types().keys()])
 
 
-def _build_branch(branch):
+def _build_branch(branch, name):
     from patch import p
 
-    section = p.Section()
+    section = p.Section(name=name)
     section.labels = [*branch.labels]
     apply_geometry(section, branch.points)
     apply_cable_properties(section, branch.definition.cable)
@@ -116,10 +142,11 @@ def apply_mech_definitions(section, mech_defs: dict["MechId", "Mechanism"]):
 
 
 class LocationAccessor:
-    def __init__(self, loc, section, mechs):
+    def __init__(self, loc, section, mechs, arcs):
         self._loc = loc
         self._section = section
         self._mechs = mechdict(mechs)
+        self._arcs = arcs
 
     def set_parameter(self, *args, **kwargs):
         """
@@ -136,3 +163,7 @@ class LocationAccessor:
     @property
     def mechanisms(self) -> Mapping["MechId", "MechAccessor"]:
         return self._mechs
+
+    def arc(self, x=0):
+        a0, a1 = self._arcs
+        return (a1 - a0) * x + a0

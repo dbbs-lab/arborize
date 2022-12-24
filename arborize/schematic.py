@@ -1,8 +1,9 @@
 import dataclasses
 import typing
 from collections import defaultdict, deque
-from typing import Optional, Union
+from typing import Optional, Union, Iterable
 
+from _util import get_location_name
 from .exceptions import ConstructionError, FrozenError
 
 from .definitions import CableType, ModelDefinition
@@ -20,12 +21,21 @@ def throw_frozen():
     raise FrozenError("Can't alter finished schematic.")
 
 
+def _random_name():
+    import random
+    import string
+
+    return "".join(random.choices(string.ascii_uppercase, k=10))
+
+
 class Schematic:
-    def __init__(self):
+    def __init__(self, name=None):
+        self._name = name
         self._frozen = False
         self._definition: ModelDefinition = ModelDefinition()
         self.virtual_branches: list["VirtualBranch"] = []
         self.roots: list["TrueBranch"] = []
+        self._named = 0
 
     def __iter__(self) -> typing.Iterator["TrueBranch"]:
         stack: deque["TrueBranch"] = deque(self.roots)
@@ -38,6 +48,20 @@ class Schematic:
             if branch.children:
                 stack.extend(reversed(branch.children))
 
+    def __len__(self):
+        return len([*iter(self)])
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if self._frozen:
+            raise FrozenError("Can't change name of finished schematic.")
+        else:
+            self._name = value
+
     @property
     def definition(self):
         return self._definition.copy()
@@ -48,6 +72,12 @@ class Schematic:
             raise FrozenError("Can't change definitions of finished schematic.")
         else:
             self._definition = value
+
+    def create_name(self):
+        if not self._frozen:
+            raise FrozenError("Schematic must be finished before naming instances of it.")
+        self._named += 1
+        return f"{self._name}_{self._named}"
 
     def create_location(self, location, coords, radii, labels, endpoint=None):
         if self._frozen:
@@ -97,22 +127,16 @@ class Schematic:
     def freeze(self):
         if not self._frozen:
             self._flatten_branches(self.roots)
+            self._name = self._name if self._name is not None else _random_name()
             self._frozen = True
 
-    def _flatten_branches(self, branches):
+    def _flatten_branches(self, branches: Iterable["TrueBranch"]):
         for branch in branches:
             branch.definition = self._makedef(branch.labels)
             try:
                 branch.definition.assert_()
             except ValueError as e:
-                if len(branch.points) == 1:
-                    loc = branch.points[0].loc
-                    locstr = f"location ({loc[0]}.{loc[1]})"
-                else:
-                    loc1 = branch.points[0].loc
-                    loc2 = branch.points[-1].loc
-                    locstr = f"interval ({loc1[0]}.{loc1[1]}-{loc2[1]})"
-
+                locstr = get_location_name(branch.points)
                 if not branch.labels:
                     raise ValueError(
                         f"Unlabeled {locstr} is missing value for {e.args[1]}."
