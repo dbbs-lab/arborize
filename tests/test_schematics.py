@@ -1,21 +1,18 @@
 import unittest
-from arborize import file_schematic
+from tests._shared import SchematicsFixture
 
 
-class TestFileSchematic(unittest.TestCase):
+class TestFileSchematic(SchematicsFixture, unittest.TestCase):
     def test_labels(self):
-        with open("tests/morphologies/P75.swc", "r") as f:
-            schematic = file_schematic(f)
         self.assertEqual(
             sorted(["soma", "apical_dendrite", "basal_dendrite"]),
-            sorted(set(b.labels[0] for b in schematic)),
+            sorted(set(b.labels[0] for b in self.p75)),
             "Missing or added label types",
         )
 
     def test_tags(self):
-        schematic = file_schematic("tests/morphologies/cell010.swc")
         self.assertEqual(
             sorted(["soma", "tag_7"]),
-            sorted(set(b.labels[0] for b in schematic)),
+            sorted(set(b.labels[0] for b in self.cell010)),
             "Missing or added label types",
         )
