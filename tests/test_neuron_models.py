@@ -2,7 +2,13 @@ import unittest
 
 from ._shared import SchematicsFixture
 from arborize import neuron_build
-from arborize.exceptions import ConstructionError
+from arborize.exceptions import (
+    ConstructionError,
+    UnknownLocationError,
+    UnknownSynapseError,
+)
+from patch import p
+import numpy as np
 
 
 class TestModelBuilding(SchematicsFixture, unittest.TestCase):
@@ -31,13 +37,14 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
     def test_synapses(self):
         cell = neuron_build(self.p75_expsyn)
         cell_nosyn = neuron_build(self.p75_expsyn)
-        with self.assertRaises(ConstructionError):
+        with self.assertRaises(UnknownSynapseError):
             cell.insert_synapse("unknown", (0, 0))
         syn = cell.insert_synapse("ExpSyn", (0, 0))
+        with self.assertRaises(UnknownLocationError):
+            cell.insert_synapse("ExpSyn", (-1, 0))
         syn.stimulate(start=0, number=3, interval=10)
         r = cell.sections[0].record()
-        from patch import p
-
+        r_nosyn = cell_nosyn.sections[0].record()
         r2 = p.Vector()
         r2.record(syn._pp.get_segment()._ref_v)
 
@@ -45,3 +52,25 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
 
         self.assertEqual(list(r), list(r2), "Recording from same loc should be identical")
         self.assertFalse(min(r) == max(r), "No synaptic currents detected")
+        self.assertTrue(min(r_nosyn) == max(r_nosyn), "Synaptic currents detected")
+
+    def test_transmitter_receiver(self):
+        if not p.parallel.id():
+            cell2 = neuron_build(self.p75_expsyn)
+            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            cell2.insert_transmitter(1, ais)
+            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
+                start=0, number=5, interval=10, weight=1, delay=1
+            )
+
+        cell = neuron_build(self.p75_expsyn)
+        cell.insert_receiver(1, "ExpSyn", (0, 0), weight=0.04, delay=1)
+        r = p.record(cell.get_segment((0, 0), 0.5))
+        spt, spid = p.parallel.spike_record()
+
+        p.run(100)
+
+        arr = np.array(p.parallel.py_allgather([*r])).T
+        self.assertEqual(2, len(spid), "Expected 2 spikes")
+        self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
+        self.assertNotEqual(min(r), max(r), "no current detected")
