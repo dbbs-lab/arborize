@@ -1,19 +1,18 @@
 import dataclasses
 import random
 import typing
-from collections import deque
-from typing import Mapping, Sequence, TYPE_CHECKING, Union
+from typing import Mapping, Sequence, TYPE_CHECKING
 
 import errr
 
-from _util import get_location_name, get_arclengths
-from ..definitions import CableProperties, MechId, Mechanism, mechdict, to_mech_id
-from ..exceptions import ConstructionError
+from .._util import get_location_name, get_arclengths
+from ..definitions import CableProperties, MechId, Mechanism, mechdict
+from ..exceptions import UnknownLocationError, UnknownSynapseError
 
 if TYPE_CHECKING:
-    from ..schematic import Location, Schematic, TrueBranch
+    from ..schematic import Location, Schematic
     from glia._glia import MechAccessor
-    from patch.objects import PointProcess, Section
+    from patch.objects import PointProcess, Section, Segment
 
 
 class NeuronModel:
@@ -30,6 +29,18 @@ class NeuronModel:
     def locations(self) -> Mapping["Location", "LocationAccessor"]:
         return self._locations
 
+    def get_location(self, loc: "Location") -> "LocationAccessor":
+        try:
+            return self._locations[loc]
+        except KeyError:
+            raise UnknownLocationError(
+                f"No such location '%location%'.", self, loc
+            ) from None
+
+    def get_segment(self, loc: "Location", sx=0.5) -> "Segment":
+        la = self.get_location(loc)
+        return la.section(la.arc(sx))
+
     def filter_sections(self, labels: list[str]):
         return [s for s in self.sections if any(lbl in labels for lbl in s.labels)]
 
@@ -38,15 +49,17 @@ class NeuronModel:
     ) -> "PointProcess":
         import glia
 
-        la = self._locations[loc]
+        la = self.get_location(loc)
         synapses = la.section.synapse_types
         try:
             synapse = synapses[label]
         except KeyError:
-            raise ConstructionError(
-                f"Synapse type '{label}' not present on branch with labels "
+            raise UnknownSynapseError(
+                f"Synapse type '%synapse%' not present on branch with labels "
                 f"{errr.quotejoin(la.section.labels)}. Choose from: "
-                f"{errr.quotejoin(synapses)}"
+                f"{errr.quotejoin(synapses)}",
+                self,
+                label,
             ) from None
         mech = glia.insert(la.section, *synapse.mech_id, x=la.arc(sx))
         mech.set(synapse.parameters)
@@ -60,12 +73,17 @@ class NeuronModel:
         loc: "Location",
         attributes=None,
         sx=0.5,
+        **kwargs,
     ):
-        synapse = self.insert_synapse(label, loc, attributes, sx)
-        return p.ParallelCon(gid, synapse)
+        from patch import p
 
-    def insert_transmitter(self, gid: int, loc: "Location"):
-        return p.ParallelCon(self._locations[loc], gid)
+        synapse = self.insert_synapse(label, loc, attributes, sx)
+        return p.ParallelCon(gid, synapse, **kwargs)
+
+    def insert_transmitter(self, gid: int, loc: "Location", sx=0.5, **kwargs):
+        from patch import p
+
+        return p.ParallelCon(self.get_segment(loc, sx), gid, **kwargs)
 
     def get_random_location(self):
         return random.choice([*self._locations.keys()])
@@ -87,6 +105,7 @@ def neuron_build(schematic: "Schematic"):
         bname = f"{name}_{get_location_name(branch.points)}"
         alens = get_arclengths(branch.points)
         section, mechs = _build_branch(branch, bname)
+        section.locations = [point.loc for point in branch.points]
         for i, point in enumerate(branch.points):
             try:
                 arcpair = (alens[i], alens[i + 1])
