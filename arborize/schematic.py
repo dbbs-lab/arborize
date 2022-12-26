@@ -1,9 +1,8 @@
-import dataclasses
 import typing
-from collections import defaultdict, deque
+from collections import deque
 from typing import Optional, Union, Iterable
 
-from _util import get_location_name
+from ._util import get_location_name
 from .exceptions import ConstructionError, FrozenError
 
 from .definitions import CableType, ModelDefinition
