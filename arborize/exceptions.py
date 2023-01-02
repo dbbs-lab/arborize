@@ -7,6 +7,7 @@ _make_tree(
         ModelDefinitionError=_e("definition"),
         ModelError=_e(
             "model",
+            TransmitterError=_e("section"),
             UnknownLocationError=_e("location"),
             UnknownSynapseError=_e("synapse"),
         ),
@@ -17,6 +18,7 @@ _make_tree(
 ArborizeError: Type[Exception]
 ModelDefinitionError: Type[ArborizeError]
 ModelError: Type[ArborizeError]
+TransmitterError: Type[ModelError]
 UnknownLocationError: Type[ModelError]
 UnknownSynapseError: Type[ModelError]
 SchematicError: Type[ArborizeError]
