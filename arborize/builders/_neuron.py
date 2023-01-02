@@ -7,7 +7,7 @@ import errr
 
 from .._util import get_location_name, get_arclengths
 from ..definitions import CableProperties, MechId, Mechanism, mechdict
-from ..exceptions import UnknownLocationError, UnknownSynapseError
+from ..exceptions import TransmitterError, UnknownLocationError, UnknownSynapseError
 
 if TYPE_CHECKING:
     from ..schematic import Location, Schematic
@@ -73,17 +73,41 @@ class NeuronModel:
         loc: "Location",
         attributes=None,
         sx=0.5,
+        source=None,
         **kwargs,
     ):
         from patch import p
 
         synapse = self.insert_synapse(label, loc, attributes, sx)
-        return p.ParallelCon(gid, synapse, **kwargs)
+        if source is None:
+            return p.ParallelCon(gid, synapse, **kwargs)
+        else:
+            spp = synapse._point_process
+            p.parallel.target_var(spp, getattr(spp, "_ref_" + source), gid)
 
-    def insert_transmitter(self, gid: int, loc: "Location", sx=0.5, **kwargs):
+    def insert_transmitter(
+        self, gid: int, loc: "Location", sx=0.5, source=None, **kwargs
+    ):
         from patch import p
 
-        return p.ParallelCon(self.get_segment(loc, sx), gid, **kwargs)
+        la = self.get_location(loc)
+        if source is None:
+            if hasattr(la.section, "_transmitter"):
+                raise TransmitterError(
+                    f"A transmitter already exists with gid {la.section._transmitter.gid}"
+                )
+            tm = p.ParallelCon(self.get_segment(loc, sx), gid, **kwargs)
+            la.section._transmitter = tm
+        else:
+            if hasattr(la.section, "_source"):
+                raise TransmitterError(
+                    f"A source variable already exists with gid {la.section._source_gid}"
+                )
+            source_var = self.get_segment(loc, sx)._ref_v
+            tm = p.parallel.source_var(source_var, gid, sec=la.section.__neuron__())
+            la.section._source = source_var
+            la.section._source_gid = gid
+        return tm
 
     def get_random_location(self):
         return random.choice([*self._locations.keys()])
