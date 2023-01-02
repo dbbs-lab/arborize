@@ -67,6 +67,7 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         cell.insert_receiver(1, "ExpSyn", (0, 0), weight=0.04, delay=1)
         r = p.record(cell.get_segment((0, 0), 0.5))
         spt, spid = p.parallel.spike_record()
+        p.parallel._warn_new_gids = False
 
         p.run(100)
 
@@ -74,3 +75,25 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(2, len(spid), "Expected 2 spikes")
         self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
         self.assertNotEqual(min(r), max(r), "no current detected")
+
+    @unittest.expectedFailure()
+    def test_double_transmitter_receiver(self):
+        if not p.parallel.id():
+            cell2 = neuron_build(self.p75_expsyn)
+            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            cell2.insert_transmitter(2, ais)
+            cell2.insert_transmitter(3, ais)
+            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
+                start=0, number=5, interval=10, weight=1, delay=1
+            )
+
+        cell = neuron_build(self.p75_expsyn)
+        cell.insert_receiver(2, "ExpSyn", (0, 0), weight=0.04, delay=1)
+        cell.insert_receiver(3, "ExpSyn", (0, 0), weight=0.04, delay=50)
+        spt, spid = p.parallel.spike_record()
+        p.parallel._warn_new_gids = False
+
+        p.run(100)
+
+        # One section can only be registered as 1 gid
+        self.assertEqual(4, len(spid), "Expected 4 spikes")
