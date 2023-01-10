@@ -26,7 +26,7 @@ setuptools.setup(
     ],
     install_requires=["numpy", "errr>=1.2.0", "morphio>=3.3.3"],
     extras_require={
-        "neuron": ["nrn-patch==4.0.0a1", "nrn-glia[neuron]==4.0.0a1"],
+        "neuron": ["nrn-patch==4.0.0a4", "nrn-glia[neuron]==4.0.0a4"],
         "arbor": ["arbor>=0.8"],
         "dev": ["sphinx", "sphinx_rtd_theme"],
     },
