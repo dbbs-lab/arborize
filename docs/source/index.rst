@@ -3,19 +3,22 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Table of contents
-=================
+Welcome to Arborize's documentation!
+====================================
+
+Arborize lets you describe your model definitions, import schematics from multiple sources
+and build equivalent multicompartmental models on the supported backends (Arbor and
+NEURON).
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-Welcome to Arborize's documentation!
-====================================
-
-Arborize lets you describe your model definitions, import schematics from multile sources
-and build equivalent multicompartmental models on the supported backends (Arbor and
-NEURON).
+   getting_started
+   model_definition
+   model_schematic
+   model_builder
+   modules
 
 Defining a model
 ----------------
@@ -32,7 +35,7 @@ Synapse types define the properties of the synapses that can be inserted.
       "synapse_types": {...}
    }
 
-You then pass this dictionary style definition to the :func:`~arborize.define_model`
+You then pass this dictionary style definition to the :func:`~arborize.definitions.define_model`
 function:
 
 .. code-block:: python
@@ -44,7 +47,8 @@ function:
       "synapse_types": {...},
    })
 
-A *definition* can then be combined with a *schematic* by a *builder* to create
+A :doc:`definition </model_definition>` can then be combined with a
+:doc:`schematic </model_schematic>` by a :doc:`builder </model_builder>` to create
 instances of your model.
 
 Cable types
@@ -71,12 +75,14 @@ Cable properties
 ++++++++++++++++
 
 * ``Ra``: Axial resistivity (ohm/cm)
+* ``cm``: Membrane capacitance (uF/cm^2)
 
 .. code-block::
 
    {
       "cable": {
-         "Ra": 0.34
+         "Ra": 0.34,
+         "cm": 1,
       }
    }
 
@@ -116,11 +122,19 @@ of up to 3 strings: ``name``, ``variant``, and ``package``; and a set of paramet
       }
    }
 
+.. hint::
+
+  Arborize uses `Glia <https://nrn-glia.readthedocs.io/en/latest/>`_ to manage the
+  mechanisms for the NEURON and Arbor backends. In order to use mechanisms you need to add
+  them to your Glia library.
+
 Synapses
 ++++++++
 
 A synapse definition is defined by its name, mechanism ID and parameter set. If you
 do not specify a mechanism ID, the name is used instead.
+
+.. code-block::
 
    {
       "synapses": {
@@ -182,11 +196,4 @@ Schematics can come from any source, and Arborize supports 2 sources out of the 
    })
    schematic = file_schematic("my_cell.swc", definition)
    n_cells = 100
-   cells = [build_neuron(schematic) for i in range(n_cells)]
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   cells = [neuron_build(schematic) for i in range(n_cells)]
