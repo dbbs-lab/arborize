@@ -77,6 +77,7 @@ Let's record the soma and plot the results:
   import plotly.express as px
 
   r = cell.soma[0].record()
+  cell.basal_dendrite[0].iclamp(delay=5, duration=1, amplitude=0.1, x=1)
   t = p.time
   p.run(100)
-  px.plot(x=list(r), y=list(t)).show()
+  px.line(x=list(r), y=list(t)).show()
