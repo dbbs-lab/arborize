@@ -63,6 +63,7 @@ class NeuronModel:
             ) from None
         mech = glia.insert(la.section, *synapse.mech_id, x=la.arc(sx))
         mech.set(synapse.parameters)
+        la.section.synapses.append(mech)
 
         return mech
 
@@ -148,6 +149,7 @@ def _build_branch(branch, name):
 
     section = p.Section(name=name)
     section.labels = [*branch.labels]
+    section.synapses = []
     apply_geometry(section, branch.points)
     apply_cable_properties(section, branch.definition.cable)
     mechs = apply_mech_definitions(section, branch.definition.mechs)
