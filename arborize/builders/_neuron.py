@@ -31,7 +31,7 @@ class NeuronModel:
 
     def get_location(self, loc: "Location") -> "LocationAccessor":
         try:
-            return self._locations[loc]
+            return self._locations[tuple(loc)]
         except KeyError:
             raise UnknownLocationError(
                 f"No such location '%location%'.", self, loc
