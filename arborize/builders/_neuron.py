@@ -63,6 +63,7 @@ class NeuronModel:
             ) from None
         mech = glia.insert(la.section, *synapse.mech_id, x=la.arc(sx))
         mech.set(synapse.parameters)
+        mech.synapse_name = label
         la.section.synapses.append(mech)
 
         return mech
@@ -94,20 +95,26 @@ class NeuronModel:
         la = self.get_location(loc)
         if source is None:
             if hasattr(la.section, "_transmitter"):
-                raise TransmitterError(
-                    f"A transmitter already exists with gid {la.section._transmitter.gid}"
-                )
-            tm = p.ParallelCon(self.get_segment(loc, sx), gid, **kwargs)
-            la.section._transmitter = tm
+                if gid != la.section._transmitter.gid:
+                    raise TransmitterError(
+                        f"A transmitter already exists with gid {la.section._transmitter.gid}"
+                    )
+                return la.section._transmitter
+            else:
+                tm = p.ParallelCon(self.get_segment(loc, sx), gid, **kwargs)
+                la.section._transmitter = tm
         else:
             if hasattr(la.section, "_source"):
-                raise TransmitterError(
-                    f"A source variable already exists with gid {la.section._source_gid}"
-                )
-            source_var = self.get_segment(loc, sx)._ref_v
-            tm = p.parallel.source_var(source_var, gid, sec=la.section.__neuron__())
-            la.section._source = source_var
-            la.section._source_gid = gid
+                if gid != la.section._source_gid:
+                    raise TransmitterError(
+                        f"A source variable already exists with gid {la.section._source_gid}"
+                    )
+                tm = la.section._source
+            else:
+                source_var = self.get_segment(loc, sx)._ref_v
+                tm = p.parallel.source_var(source_var, gid, sec=la.section.__neuron__())
+                la.section._source = source_var
+                la.section._source_gid = gid
         return tm
 
     def get_random_location(self):
