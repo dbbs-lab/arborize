@@ -20,6 +20,7 @@ class Copy:
 @dataclasses.dataclass
 class CableProperties(Copy):
     Ra: float = None
+    cm: float = None
     """
     Axial resistivity in ohm/cm
     """
@@ -44,7 +45,9 @@ class CableProperties(Copy):
 
 @dataclasses.dataclass
 class Ion(Copy):
-    e: float
+    rev_pot: float = None
+    int_con: float = None
+    ext_con: float = None
 
 
 class Mechanism:
@@ -74,9 +77,9 @@ class Synapse(Mechanism):
 
 def is_mech_id(mech_id):
     return str(mech_id) == mech_id or (
-            tuple(mech_id) == mech_id
-            and 0 < len(mech_id) < 4
-            and all(str(part) == part for part in mech_id)
+        tuple(mech_id) == mech_id
+        and 0 < len(mech_id) < 4
+        and all(str(part) == part for part in mech_id)
     )
 
 
@@ -101,6 +104,7 @@ class CableType:
     def copy(self):
         def_ = CableType()
         def_.cable = self.cable.copy()
+        def_.ions = {k: v.copy() for k, v in self.ions.items()}
         def_.mechs = {k: v.copy() for k, v in self.mechs.items()}
         def_.synapses = {k: v.copy() for k, v in self.synapses.items()}
         return def_
@@ -113,9 +117,9 @@ class CableType:
 
     @staticmethod
     def anchor(
-            defs: typing.Iterable["CableType"],
-            synapses: dict[str, Synapse] = None,
-            use_defaults: bool = False,
+        defs: typing.Iterable["CableType"],
+        synapses: dict[str, Synapse] = None,
+        use_defaults: bool = False,
     ) -> "CableType":
         def_ = CableType() if not use_defaults else CableType.default()
         if synapses is not None:
@@ -140,6 +144,7 @@ class CableType:
 
     def merge(self, def_right: "CableType"):
         self.cable.merge(def_right.cable)
+        self._mergedict(self.ions, def_right.ions)
         self._mergedict(self.mechs, def_right.mechs)
         self._mergedict(self.synapses, def_right.synapses)
 
@@ -157,6 +162,7 @@ class CableType:
     def default(cls):
         default = cls()
         default.cable.Ra = 35.4
+        default.cable.cm = 1
         return default
 
     def add_ion(self, key: str, ion: Ion):
@@ -241,7 +247,8 @@ def _parse_cable_type(cable_dict):
         for k, v in cable_dict.get("cable", {}).items():
             setattr(def_.cable, k, v)
         for k, v in cable_dict.get("ions", {}).items():
-            def_.add_ion(k, _parse_ion_def(v))
+            parsed = _parse_ion_def(v)
+            def_.add_ion(k, parsed)
         for mech_id, v in cable_dict.get("mechanisms", {}).items():
             def_.add_mech(mech_id, _parse_mech_def(v))
         for label, v in cable_dict.get("synapses", {}).items():

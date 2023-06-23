@@ -79,5 +79,43 @@ Let's record the soma and plot the results:
   r = cell.soma[0].record()
   cell.basal_dendrite[0].iclamp(delay=5, duration=1, amplitude=0.1, x=1)
   t = p.time
+  p.celsius = 6.3
+  p.run(100)
+  px.line(x=list(r), y=list(t)).show()
+
+To create variants of your cell model, pass the template definition to ``define_model``:
+
+.. code-block:: python
+
+  variant = define_model(definition, {
+    "cable_types": {
+      "soma": {
+        "mechanisms": {
+          "hh": {
+            "gkbar": 0.172
+          }
+        }
+      }
+    }
+  })
+
+
+We can now plot the difference between the 2 cell types:
+
+.. code-block:: python
+
+  from patch import p
+  import plotly.express as px
+
+  wildtype_schematic = file_schematic("morpho.swc", definition)
+  wildtype_cell = neuron_build(schematic)
+  variant_schematic = file_schematic("morpho.swc", variant)
+  variant_cell = neuron_build(variant_schematic)
+  wildtype_cell.basal_dendrite[0].iclamp(delay=5, duration=1, amplitude=0.1, x=1)
+  variant_cell.basal_dendrite[0].iclamp(delay=5, duration=1, amplitude=0.1, x=1)
+  r_wt = wildtype_cell.soma[0].record()
+  r_var = variant_cell.soma[0].record()
+  t = p.time
+  p.celsius = 6.3
   p.run(100)
   px.line(x=list(r), y=list(t)).show()

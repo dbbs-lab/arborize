@@ -98,8 +98,8 @@ lowercase, and each can set the following properties:
 
    {
       "ions": {
-         "h": {"e": 0},
-         "ca": {"e": 30},
+         "h": {"rev_pot": 0},
+         "ca": {"rev_pot": 30},
       }
    }
 

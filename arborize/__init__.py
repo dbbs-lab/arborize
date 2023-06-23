@@ -11,4 +11,4 @@ from .definitions import (
 )
 from .schematic import Schematic
 
-__version__ = "4.0.0a4"
+__version__ = "4.0.0a5"

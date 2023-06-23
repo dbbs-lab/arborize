@@ -6,7 +6,7 @@ from typing import Mapping, Sequence, TYPE_CHECKING
 import errr
 
 from .._util import get_location_name, get_arclengths
-from ..definitions import CableProperties, MechId, Mechanism, mechdict
+from ..definitions import CableProperties, MechId, Mechanism, mechdict, Ion
 from ..exceptions import TransmitterError, UnknownLocationError, UnknownSynapseError
 
 if TYPE_CHECKING:
@@ -160,6 +160,7 @@ def _build_branch(branch, name):
     apply_geometry(section, branch.points)
     apply_cable_properties(section, branch.definition.cable)
     mechs = apply_mech_definitions(section, branch.definition.mechs)
+    apply_ions(section, branch.definition.ions)
     section.synapse_types = branch.definition.synapses
     return section, mechs
 
@@ -177,6 +178,17 @@ def apply_geometry(section, points):
 def apply_cable_properties(section, cable_props: "CableProperties"):
     for field in dataclasses.fields(cable_props):
         setattr(section, field.name, getattr(cable_props, field.name))
+
+
+def apply_ions(section, ions: typing.Dict[str, "Ion"]):
+    prop_map = {"rev_pot": "e{ion}", "int_con": "{ion}i", "ext_con": "{ion}o"}
+    for ion_name, ion_props in ions.items():
+        for field in dataclasses.fields(ion_props):
+            setattr(
+                section,
+                prop_map[field.name].format(ion=ion_name),
+                getattr(ion_props, field.name),
+            )
 
 
 def apply_mech_definitions(section, mech_defs: dict["MechId", "Mechanism"]):

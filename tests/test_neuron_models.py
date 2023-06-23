@@ -1,9 +1,8 @@
 import unittest
 
 from ._shared import SchematicsFixture
-from arborize import neuron_build
+from arborize import define_model, neuron_build
 from arborize.exceptions import (
-    ConstructionError,
     UnknownLocationError,
     UnknownSynapseError,
 )
@@ -76,8 +75,10 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
         self.assertNotEqual(min(r), max(r), "no current detected")
 
-    @unittest.expectedFailure()
+    @unittest.expectedFailure
     def test_double_transmitter_receiver(self):
+        # This test verifies that NEURON still only transmits spikes to 1 detector per
+        # Section
         if not p.parallel.id():
             cell2 = neuron_build(self.p75_expsyn)
             ais = cell2.filter_sections(["soma"])[0].locations[-1]
@@ -97,3 +98,69 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
 
         # One section can only be registered as 1 gid
         self.assertEqual(4, len(spid), "Expected 4 spikes")
+
+    def test_cable_building(self):
+        self.cell010.definition = define_model(
+            {
+                "cable_types": {
+                    "soma": {
+                        "cable": {"Ra": 102, "cm": 2.1},
+                        "ions": {
+                            "k": {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
+                            "na": {"rev_pot": 137.5, "int_con": 20, "ext_con": 130},
+                        },
+                        "mechanisms": {
+                            "pas": {"e": -70, "g": 0.01},
+                            "hh": {
+                                "gnabar": 0,
+                                "gkbar": 0.036,
+                                "gl": 0.0003,
+                                "el": -54.3,
+                            },
+                        },
+                    },
+                },
+            },
+            use_defaults=True,
+        )
+        cell = neuron_build(self.cell010)
+        psection = cell.soma[0].psection()
+        density_mechs = psection["density_mechs"]
+        ions = psection["ions"]
+
+        # Cable
+        self.assertEqual(102, psection["Ra"])
+        self.assertEqual(2.1, psection["cm"][0])
+
+        # Mechanisms
+        self.assertIn("pas", density_mechs)
+        self.assertIn("hh", density_mechs)
+
+        pas = density_mechs["pas"]
+        self.assertEqual(-70, pas["e"][0])
+        self.assertEqual(0.01, pas["g"][0])
+
+        hh = density_mechs["hh"]
+        self.assertEqual(0, hh["gnabar"][0])
+        self.assertEqual(0.036, hh["gkbar"][0])
+        self.assertEqual(0.0003, hh["gl"][0])
+        self.assertEqual(-54.3, hh["el"][0])
+
+        # Ions
+        k = ions["k"]
+        na = ions["na"]
+        self.assertEqual(-80.993, k["ek"][0])
+        self.assertEqual(60, k["ki"][0])
+        self.assertEqual(4, k["ko"][0])
+        self.assertEqual(-80.993, k["ek"][0])
+        self.assertEqual(137.5, na["ena"][0])
+        self.assertEqual(20, na["nai"][0])
+        self.assertEqual(130, na["nao"][0])
+
+
+tagsGrC = {
+    16: ["axon", "axon_hillock"],
+    17: ["axon", "axon_initial_segment"],
+    18: ["axon", "ascending_axon"],
+    19: ["axon", "parallel_fiber"],
+}
