@@ -75,15 +75,16 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
         self.assertNotEqual(min(r), max(r), "no current detected")
 
-    @unittest.expectedFailure
     def test_double_transmitter_receiver(self):
-        # This test verifies that NEURON still only transmits spikes to 1 detector per
-        # Section
+        # Tests that NEURON still only transmits spikes from 1 detector per Section
         if not p.parallel.id():
             cell2 = neuron_build(self.p75_expsyn)
             ais = cell2.filter_sections(["soma"])[0].locations[-1]
             cell2.insert_transmitter(2, ais)
-            cell2.insert_transmitter(3, ais)
+            # Arborize doesn't let you place 2 transmitters on the same section,
+            # so bypass the security measure with some magic.
+            la = cell2.get_location(ais)
+            tm = p.ParallelCon(cell2.get_segment(ais, 0.5), 3)
             cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
                 start=0, number=5, interval=10, weight=1, delay=1
             )
@@ -96,8 +97,12 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
 
         p.run(100)
 
-        # One section can only be registered as 1 gid
-        self.assertEqual(4, len(spid), "Expected 4 spikes")
+        # If you'd insert more than 1 threshold detectors into the same Section,
+        # only 1 of them would actually detect thresholds, go figure. If this assert fails
+        # NEURON finally fixed that! :tada:
+        self.assertEqual(
+            2, len(spid), "NEURON stopped silently not doing what it should! Yay?"
+        )
 
     def test_cable_building(self):
         self.cell010.definition = define_model(
