@@ -17,19 +17,21 @@ class Copy:
         return other
 
 
-@dataclasses.dataclass
-class CableProperties(Copy):
-    Ra: float = None
-    cm: float = None
-    """
-    Axial resistivity in ohm/cm
-    """
-
+class Merge:
     def merge(self, other):
         for field in dataclasses.fields(self):
             value = getattr(other, field.name)
             if value is not None:
                 setattr(self, field.name, value)
+
+
+@dataclasses.dataclass
+class CableProperties(Copy, Merge):
+    Ra: float = None
+    cm: float = None
+    """
+    Axial resistivity in ohm/cm
+    """
 
     def copy(self):
         other = type(self)()
@@ -44,7 +46,7 @@ class CableProperties(Copy):
 
 
 @dataclasses.dataclass
-class Ion(Copy):
+class Ion(Copy, Merge):
     rev_pot: float = None
     int_con: float = None
     ext_con: float = None
@@ -255,7 +257,9 @@ def _parse_cable_type(cable_dict):
             def_.add_synapse(label, _parse_synapse_def(label, v))
         return def_
     except Exception:
-        raise ModelDefinitionError(f"{cable_dict} is not a valid cable type definition.")
+        raise ModelDefinitionError(
+            f"{cable_dict} is not a valid cable type definition."
+        )
 
 
 def _parse_ion_def(ion_dict):
