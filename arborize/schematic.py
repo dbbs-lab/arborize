@@ -28,6 +28,21 @@ def _random_name():
 
 
 class Schematic:
+    """
+    A schematic is an intermediate object that associates parameter definitions to points
+    in space. You can define locations (3d coords + radius) and tag them with labels, or
+    set parameters directly on the locations. You can pass a schematic to a Builder, which
+    will freeze the schematic (no changes can be made anymore) and create a simulator
+    specific instance of the model.
+
+    Schematics create a user-facing layer of "virtual branches", which is the network
+    graph of the created locations. However, NEURON does not support the resolution that
+    arbor does, so an underlying layer of "true branches" is created. In NEURON, a map is
+    kept on the model between the locations on the virtual branches and the locations on
+    the true branches, so that we can arbitrarily split up true branches into smaller
+    pieces to achieve the resolution we need.
+    """
+
     def __init__(self, name=None):
         self._name = name
         self._frozen = False
@@ -37,6 +52,9 @@ class Schematic:
         self._named = 0
 
     def __iter__(self) -> typing.Iterator["UnitBranch"]:
+        """
+        Iterate over the unit branches depth-first order.
+        """
         stack: deque["UnitBranch"] = deque(self.units)
         while True:
             try:
@@ -52,6 +70,10 @@ class Schematic:
 
     @property
     def name(self):
+        """
+        Base name for all the instances of this model. Suffixed unique names for each
+        instance can be obtained by calling ``create_name``.
+        """
         return self._name
 
     @name.setter
@@ -63,6 +85,10 @@ class Schematic:
 
     @property
     def definition(self):
+        """
+        Definition of the model, contains the definition of the parameters for the cables,
+        mechanisms, and synapses of this model.
+        """
         return self._definition.copy()
 
     @definition.setter
@@ -73,6 +99,9 @@ class Schematic:
             self._definition = value
 
     def create_name(self):
+        """
+        Generate the next unique name for an instance of this model.
+        """
         if not self._frozen:
             raise FrozenError(
                 "Schematic must be finished before naming instances of it."
@@ -81,49 +110,78 @@ class Schematic:
         return f"{self._name}_{self._named}"
 
     def create_location(self, location, coords, radii, labels, endpoint=None):
+        """
+        Add a new location to the schematic. A location is a tuple of the branch id and
+        point-on-branch id. Locations must be appended in ascending order.
+
+        :param location:
+        :param coords:
+        :param radii:
+        :param labels:
+        :param endpoint:
+        :return:
+        """
         if self._frozen:
             throw_frozen()
         bid, pid = location
         next_bid = len(self.cables)
         if bid == next_bid:
+            # We are starting a new branch
             branch = CableBranch()
             self.cables.append(branch)
         elif bid == next_bid - 1:
+            # We are continuing the same branch
             branch = self.cables[bid]
         else:
+            # Ascending branch order violated
             next_loc = f"({next_bid - 1}.{len(self.cables[next_bid - 1].points)})"
             raise ConstructionError(
                 f"Locations need to be constructed in order. Can't construct "
                 f"{location}, should construct {next_loc} or ({next_bid}.0)."
             ) from None
         if pid != len(branch.points):
+            # Ascending point order violated
             raise ConstructionError(
                 f"Locations need to be constructed in order. Can't construct {location}"
                 f", should have constructed ({bid}, {len(branch.points)}) next."
             ) from None
+        # We append the point to the virtual branch, this may create new true branches.
         point = branch.append(location, coords, radii, labels)
         if endpoint:
-            parent = self.cables[endpoint[0]].points[endpoint[1]].branch
-            point.branch.parent = parent
-            parent.children.append(point.branch)
+            # If an endpoint was passed, we should set that as our parent
+            cable_parent = self.cables[endpoint[0]]
+            unit_parent = cable_parent.points[endpoint[1]].branch
+            # Set virtual parent
+            branch.parent = cable_parent
+            # Set virtual child
+            cable_parent.children.append(branch)
+            # Set true branch parent
+            point.branch.parent = unit_parent
+            # Set true branch child
+            unit_parent.children.append(point.branch)
         elif pid == 0:
+            # Otherwise, the first point of a branch without an endpoint should be added
+            # to the roots of the schematic.
             self.units.append(point.branch)
 
     def create_empty(self):
+        """Create an empty branch"""
         if self._frozen:
             throw_frozen()
         self.cables.append(CableBranch())
 
     def set_param(self, location: Union[Location, Interval, str], param: "Parameter"):
         if isinstance(location, str):
-            # Set label definition
+            # Set parameter for the global label definition
             self.definition[location].set(param)
         else:
+            # Set parameter on the specific location or interval
             raise NotImplementedError(
                 "Location or interval parameters not implemented yet."
             )
 
     def freeze(self):
+        """Freeze the schematic. Most mutating operations will no longer be permitted."""
         if not self._frozen:
             self._flatten_branches(self.units)
             self._name = self._name if self._name is not None else _random_name()
@@ -131,8 +189,10 @@ class Schematic:
 
     def _flatten_branches(self, branches: Iterable["UnitBranch"]):
         for branch in branches:
+            # Concretize the true branch definition by merging all labels and params.
             branch.definition = self._makedef(branch.labels)
             try:
+                # Assert that none of the values are missing (= `None`)
                 branch.definition.assert_()
             except ValueError as e:
                 locstr = get_location_name(branch.points)
@@ -147,6 +207,7 @@ class Schematic:
             self._flatten_branches(branch.children)
 
     def _makedef(self, labels: typing.Sequence[str]) -> CableType:
+        # Determine the cable type priority order based on the key order in the dict.
         insert_index = [*self._definition._cable_types.keys()].index
         len_ = len(self._definition._cable_types)
 
@@ -185,21 +246,27 @@ class Point:
 
 class Branch:
     points: list[Point]
+    parent: Optional["Branch"]
+    children: list["Branch"]
 
     def __init__(self):
         self.points = []
-
-    def append(self, point):
-        self.points.append(point)
+        self.parent = None
+        self.children = []
 
 
 class CableBranch(Branch):
+    parent: Optional["CableBranch"]
+    children: list["CableBranch"]
+
     def append(self, loc, coords, radius, labels):
         if len(self.points):
             prev = self.points[-1]
             if prev.branch.labels == labels:
+                # If we have the same labels, continue growing the true branch
                 branch = prev.branch
             else:
+                # If the labels change, create a new true branch
                 branch = UnitBranch()
                 branch.parent = prev.branch
                 prev.branch.children.append(branch)
@@ -208,7 +275,7 @@ class CableBranch(Branch):
         branch.labels = labels.copy()
         point = Point(loc, branch, coords, radius)
         branch.points.append(point)
-        super().append(point)
+        self.points.append(point)
         return point
 
 
@@ -218,7 +285,5 @@ class UnitBranch(Branch):
     labels: list[str]
     definition: CableType
 
-    def __init__(self):
-        super().__init__()
-        self.parent = None
-        self.children = []
+    def append(self, point):
+        self.points.append(point)
