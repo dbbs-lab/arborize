@@ -42,7 +42,6 @@ def arbor_build(schematic: "Schematic"):
         for pt, seg in zip(vb.points, segments):
             assert _mkpt(pt) == seg.prox
             assert pwlin.closest(*pt.coords)[1] < 1e-8
-    
 
 
 def _mkpt(p: "Point") -> arbor.mpoint:
