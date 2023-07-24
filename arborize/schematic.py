@@ -3,7 +3,7 @@ from collections import deque
 from typing import Optional, Union, Iterable
 
 from ._util import get_location_name
-from .exceptions import ConstructionError, FrozenError
+from .exceptions import ConstructionError, FrozenError, ModelDefinitionError
 
 from .definitions import CableType, ModelDefinition
 
@@ -140,9 +140,9 @@ class Schematic:
                     raise ValueError(
                         f"Unlabeled {locstr} is missing value for {e.args[1]}."
                     ) from None
-                raise ValueError(
+                raise ModelDefinitionError(
                     f"{locstr} labelled {errr.quotejoin(branch.labels)} misses value for "
-                    f"{e.args[1]}"
+                    f"{e.args[1:]}"
                 ) from None
             self._flatten_branches(branch.children)
 
