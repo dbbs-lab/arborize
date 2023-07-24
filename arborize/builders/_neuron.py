@@ -45,7 +45,11 @@ class NeuronModel:
         return [s for s in self.sections if any(lbl in labels for lbl in s.labels)]
 
     def insert_synapse(
-        self, label: typing.Union[str, "MechId"], loc: "Location", attributes=None, sx=0.5
+        self,
+        label: typing.Union[str, "MechId"],
+        loc: "Location",
+        attributes=None,
+        sx=0.5,
     ) -> "PointProcess":
         import glia
 
