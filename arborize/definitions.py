@@ -25,8 +25,15 @@ class Merge:
                 setattr(self, field.name, value)
 
 
+class Assert:
+    def assert_(self):
+        for field in dataclasses.fields(self):
+            if getattr(self, field.name, None) is None:
+                raise ValueError(f"Missing '{field.name}' value.", field.name)
+
+
 @dataclasses.dataclass
-class CableProperties(Copy, Merge):
+class CableProperties(Copy, Merge, Assert):
     Ra: float = None
     cm: float = None
     """
@@ -39,14 +46,9 @@ class CableProperties(Copy, Merge):
             setattr(other, field.name, getattr(self, field.name))
         return other
 
-    def assert_(self):
-        for field in dataclasses.fields(self):
-            if getattr(self, field.name, None) is None:
-                raise ValueError(f"Missing '{field.name}' value.", field.name)
-
 
 @dataclasses.dataclass
-class Ion(Copy, Merge):
+class Ion(Copy, Merge, Assert):
     rev_pot: float = None
     int_con: float = None
     ext_con: float = None
@@ -159,12 +161,22 @@ class CableType:
 
     def assert_(self):
         self.cable.assert_()
+        for ion_name, ion in self.ions.items():
+            try:
+                ion.assert_()
+            except ValueError as e:
+                raise ValueError(
+                    f"Missing '{e.args[1]}' value in ion '{ion_name}'",
+                    ion_name,
+                    e.args[1],
+                ) from None
 
     @classmethod
     def default(cls):
         default = cls()
         default.cable.Ra = 35.4
         default.cable.cm = 1
+        default.ions = default_ions_dict()
         return default
 
     def add_ion(self, key: str, ion: Ion):
@@ -186,6 +198,24 @@ class CableType:
         if label in self.synapses:
             raise KeyError(f"A synapse with label '{label}' already exists.")
         self.synapses[label] = synapse
+
+
+class default_ions_dict(dict):
+    def __init__(self):
+        super().__init__()
+        self._defaults = {
+            "na": Ion(rev_pot=50.0, int_con=10.0, ext_con=140.0),
+            "k": Ion(rev_pot=-77.0, int_con=54.4, ext_con=2.5),
+            "ca": Ion(rev_pot=132.4579341637009, int_con=5e-05, ext_con=2.0),
+        }
+
+    def __setitem__(self, key, ion):
+        if key not in self:
+            value = self._defaults[key].copy()
+            # Do a criss-cross merge to merge defaults into the original ion object
+            value.merge(ion)
+            ion.merge(value)
+        super().__setitem__(key, ion)
 
 
 class ModelDefinition:
