@@ -16,3 +16,8 @@ class TestFileSchematic(SchematicsFixture, unittest.TestCase):
             sorted(set(b.labels[0] for b in self.cell010)),
             "Missing or added label types",
         )
+
+    def test_multitagged_branch(self):
+        # FIXME: When https://github.com/BlueBrain/MorphIO/issues/469 is fixed we can use
+        # MorphIO to load SWC files that have multiple different tags on a branch
+        pass
