@@ -207,6 +207,7 @@ class default_ions_dict(dict):
             "na": Ion(rev_pot=50.0, int_con=10.0, ext_con=140.0),
             "k": Ion(rev_pot=-77.0, int_con=54.4, ext_con=2.5),
             "ca": Ion(rev_pot=132.4579341637009, int_con=5e-05, ext_con=2.0),
+            "h": Ion(rev_pot=0.0, int_con=1.0, ext_con=1.0),
         }
 
     def __setitem__(self, key, ion):
