@@ -64,17 +64,19 @@ def file_schematic(
             else:
                 endpoint = None
             if isinstance(branch.type, SomaType):
-                type = "soma"
+                branch_type = "soma"
             elif "custom" in str(branch.type):
                 num = re.search(r"\d+$", str(branch.type)).group()
-                type = f"tag_{num}"
+                branch_type = f"tag_{num}"
             else:
-                type = str(branch.type).split(".")[-1]
+                branch_type = str(branch.type).split(".")[-1]
             for pid, coords, diam in zip(
                 itertools.count(), branch.points, branch.diameters
             ):
                 endpoint = endpoint if pid == 0 else None
-                schematic.create_location((bid, pid), coords, diam / 2, [type], endpoint)
+                schematic.create_location(
+                    (bid, pid), coords, diam / 2, [branch_type], endpoint
+                )
             endpoints.append((bid, pid))
     if definitions is not None:
         schematic.definition = definitions

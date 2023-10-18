@@ -32,12 +32,12 @@ class Schematic:
         self._name = name
         self._frozen = False
         self._definition: ModelDefinition = ModelDefinition()
-        self.virtual_branches: list["VirtualBranch"] = []
-        self.roots: list["TrueBranch"] = []
+        self.cables: list["CableBranch"] = []
+        self.units: list["UnitBranch"] = []
         self._named = 0
 
-    def __iter__(self) -> typing.Iterator["TrueBranch"]:
-        stack: deque["TrueBranch"] = deque(self.roots)
+    def __iter__(self) -> typing.Iterator["UnitBranch"]:
+        stack: deque["UnitBranch"] = deque(self.units)
         while True:
             try:
                 branch = stack.pop()
@@ -74,7 +74,9 @@ class Schematic:
 
     def create_name(self):
         if not self._frozen:
-            raise FrozenError("Schematic must be finished before naming instances of it.")
+            raise FrozenError(
+                "Schematic must be finished before naming instances of it."
+            )
         self._named += 1
         return f"{self._name}_{self._named}"
 
@@ -82,16 +84,14 @@ class Schematic:
         if self._frozen:
             throw_frozen()
         bid, pid = location
-        next_bid = len(self.virtual_branches)
+        next_bid = len(self.cables)
         if bid == next_bid:
-            branch = VirtualBranch()
-            self.virtual_branches.append(branch)
+            branch = CableBranch()
+            self.cables.append(branch)
         elif bid == next_bid - 1:
-            branch = self.virtual_branches[bid]
+            branch = self.cables[bid]
         else:
-            next_loc = (
-                f"({next_bid - 1}.{len(self.virtual_branches[next_bid - 1].points)})"
-            )
+            next_loc = f"({next_bid - 1}.{len(self.cables[next_bid - 1].points)})"
             raise ConstructionError(
                 f"Locations need to be constructed in order. Can't construct "
                 f"{location}, should construct {next_loc} or ({next_bid}.0)."
@@ -103,16 +103,16 @@ class Schematic:
             ) from None
         point = branch.append(location, coords, radii, labels)
         if endpoint:
-            parent = self.virtual_branches[endpoint[0]].points[endpoint[1]].branch
+            parent = self.cables[endpoint[0]].points[endpoint[1]].branch
             point.branch.parent = parent
             parent.children.append(point.branch)
         elif pid == 0:
-            self.roots.append(point.branch)
+            self.units.append(point.branch)
 
     def create_empty(self):
         if self._frozen:
             throw_frozen()
-        self.virtual_branches.append(VirtualBranch())
+        self.cables.append(CableBranch())
 
     def set_param(self, location: Union[Location, Interval, str], param: "Parameter"):
         if isinstance(location, str):
@@ -125,11 +125,11 @@ class Schematic:
 
     def freeze(self):
         if not self._frozen:
-            self._flatten_branches(self.roots)
+            self._flatten_branches(self.units)
             self._name = self._name if self._name is not None else _random_name()
             self._frozen = True
 
-    def _flatten_branches(self, branches: Iterable["TrueBranch"]):
+    def _flatten_branches(self, branches: Iterable["UnitBranch"]):
         for branch in branches:
             branch.definition = self._makedef(branch.labels)
             try:
@@ -174,7 +174,7 @@ class Schematic:
 
 
 class Point:
-    branch: "TrueBranch"
+    branch: "UnitBranch"
 
     def __init__(self, loc, branch, coords, radius):
         self.loc = loc
@@ -193,18 +193,18 @@ class Branch:
         self.points.append(point)
 
 
-class VirtualBranch(Branch):
+class CableBranch(Branch):
     def append(self, loc, coords, radius, labels):
         if len(self.points):
             prev = self.points[-1]
             if prev.branch.labels == labels:
                 branch = prev.branch
             else:
-                branch = TrueBranch()
+                branch = UnitBranch()
                 branch.parent = prev.branch
                 prev.branch.children.append(branch)
         else:
-            branch = TrueBranch()
+            branch = UnitBranch()
         branch.labels = labels.copy()
         point = Point(loc, branch, coords, radius)
         branch.points.append(point)
@@ -212,9 +212,9 @@ class VirtualBranch(Branch):
         return point
 
 
-class TrueBranch(Branch):
-    parent: Optional["TrueBranch"]
-    children: list["TrueBranch"]
+class UnitBranch(Branch):
+    parent: Optional["UnitBranch"]
+    children: list["UnitBranch"]
     labels: list[str]
     definition: CableType
 
