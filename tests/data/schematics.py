@@ -8,10 +8,32 @@ def _mpath(path):
     return _os.path.join(_os.path.dirname(__file__), "morphologies", path)
 
 
-cell010 = _schema(_mpath("cell010.swc"))
-with open(_mpath("P75.swc"), "r") as _file:
-    p75 = _schema(_file)
-with open(_mpath("P75.swc"), "r") as _file:
-    p75_pas = _schema(_file, definitions=_pas)
-    p75_expsyn = _schema(_file, definitions=_expsyn)
-multitagged = _schema(_mpath("multitagged.swc"))
+def cell010():
+    return _schema(_mpath("cell010.swc"))
+
+
+def p75():
+    with open(_mpath("P75.swc"), "r") as _file:
+        return _schema(_file)
+
+
+def p75_pas():
+    with open(_mpath("P75.swc"), "r") as _file:
+        return _schema(_file, definitions=_pas)
+
+
+def p75_expsyn():
+    with open(_mpath("P75.swc"), "r") as _file:
+        return _schema(_file, definitions=_expsyn)
+
+
+def multitagged():
+    return _schema(_mpath("multitagged.swc"))
+
+
+def one_branch():
+    return _schema(_mpath("one_branch.swc"))
+
+
+def two_branch():
+    return _schema(_mpath("two_branch.swc"))
