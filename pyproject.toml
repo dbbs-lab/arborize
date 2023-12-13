@@ -10,6 +10,7 @@ license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
 dynamic = ["version", "description"]
 dependencies = ["numpy", "errr>=1.2.0", "morphio>=3.3.6"]
+requires-python = ">=3.9"
 
 [project.optional-dependencies]
 neuron = ["nrn-patch>=4.0.0b3", "nmodl-glia[neuron]>=4.0.0b6"]
