@@ -10,6 +10,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Black Check
-      uses: jpetrucciani/black-check
+      uses: jpetrucciani/black-check@master
       with:
-        path: 'patch'
+        path: 'arborize'
