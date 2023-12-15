@@ -124,6 +124,13 @@ class NeuronModel:
     def get_random_location(self):
         return random.choice([*self._locations.keys()])
 
+    def record(self):
+        soma = [s for s in self._sections if "soma" in s.labels]
+        if not soma:
+            raise RuntimeError("No soma to record from")
+        else:
+            return soma[0].record()
+
     def __getattr__(self, item):
         if item in self._cable_types:
             return [s for s in self._sections if item in s.labels]

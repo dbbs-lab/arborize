@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        py: ["3.8", "3.9", "3.10"]
+        py: ["3.9", "3.10", "3.11"]
     steps:
-    - uses: actions/checkout
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.py }}
-      uses: actions/setup-python
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.py }}
     - name: Install apt dependencies
@@ -20,7 +20,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install openmpi-bin libopenmpi-dev
     - name: Cache pip
-      uses: actions/cache
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -30,7 +30,7 @@ jobs:
     - name: Install dependencies & self
       run: |
         python -m pip install --upgrade pip
-        pip install wheel
+        pip install . --no-deps
         pip install -r requirements.txt --prefer-binary
         pip install bsb==4.0.0a57
         pip install -e .
@@ -38,4 +38,6 @@ jobs:
       run: |
         coverage run --parallel-mode -m unittest
         mpiexec -n 2 coverage run --parallel-mode -m unittest
+        NRN_SEGFAULT=1 coverage run --parallel-mode -m unittest
+        NRN_SEGFAULT=1 mpiexec -n 2 coverage run --parallel-mode -m unittest
         bash <(curl -s https://codecov.io/bash)

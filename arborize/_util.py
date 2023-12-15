@@ -20,5 +20,5 @@ def get_location_name(pts: Iterable["Point"]) -> str:
 def get_arclengths(pts: Iterable["Point"]) -> npt.NDArray[float]:
     coords = np.array([pt.coords for pt in pts])
     rel_dist = np.diff(coords, axis=0, prepend=[coords[0, :]])
-    arcsums = np.cumsum(np.sum(rel_dist ** 2, axis=1) ** 0.5)
+    arcsums = np.cumsum(np.sum(rel_dist**2, axis=1) ** 0.5)
     return arcsums / arcsums[-1]

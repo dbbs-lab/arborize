@@ -1,5 +1,6 @@
-nrn-patch==4.0.0a4
-nrn-glia==4.0.0a4
-numpy==1.22.0
+nrn-patch==4.0.0b3
+nmodl-glia==4.0.0b6
+numpy==1.26.0
 errr==1.2.0
-mpi4py
+coverage~=7.0
+mpi4py==3.1.5

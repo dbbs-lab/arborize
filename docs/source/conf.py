@@ -49,7 +49,7 @@ autodoc_mock_imports = [
     "scipy",
     "six",
     "plotly",
-    "morphio"
+    "morphio",
 ]
 
 # -- General configuration ---------------------------------------------------
