@@ -142,7 +142,9 @@ class TestTransmission(SchematicsFixture, unittest.TestCase):
         p.run(100)
 
         arr = np.array(p.parallel.py_allgather([*r])).T
-        self.assertEqual(2, len(spid), "Expected 2 spikes")
+
+        if not p.parallel.id():
+            self.assertEqual(2, len(spid), "Expected 2 spikes")
         self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
         self.assertNotEqual(min(r), max(r), "no current detected")
 
@@ -165,18 +167,18 @@ class TestTransmission(SchematicsFixture, unittest.TestCase):
         cell = neuron_build(self.p75_expsyn)
         cell.insert_receiver(2, "ExpSyn", (0, 0), weight=0.08, delay=1)
         cell.insert_receiver(3, "ExpSyn", (0, 0), weight=0.08, delay=50)
+        r = cell.record()
         spt, spid = p.parallel.spike_record()
         p.parallel._warn_new_gids = False
 
-        p.finitialize()
-        p.run(100)
+        p.run(100, v_init=-65)
 
-        # If you'd insert more than 1 threshold detectors into the same Section,
-        # only 1 of them would actually detect thresholds, go figure. If this assert fails
-        # NEURON finally fixed that! :tada:
-        self.assertEqual(
-            1, len(spid), "NEURON stopped silently not doing what it should! Yay?"
-        )
+        if not p.parallel.id():
+            # If you'd insert more than 1 threshold detectors into the same Section,
+            # only 1 of them would actually detect thresholds, go figure. If this assert
+            # fails NEURON finally fixed that! :tada:
+            self.assertEqual(1, len(spid))
+        self.assertTrue(np.any(np.array(r) != -65))
 
 
 tagsGrC = {
