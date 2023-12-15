@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from ._shared import SchematicsFixture
@@ -10,6 +11,10 @@ from patch import p
 import numpy as np
 
 
+@unittest.skipIf(
+    "NRN_SEGFAULT" in os.environ,
+    "These tests are skipped to test the other tests below separately. See https://github.com/neuronsimulator/nrn/issues/2641",
+)
 class TestModelBuilding(SchematicsFixture, unittest.TestCase):
     def test_mech_insert(self):
         cell = neuron_build(self.p75_pas)
@@ -54,57 +59,6 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         )
         self.assertFalse(min(r) == max(r), "No synaptic currents detected")
         self.assertTrue(min(r_nosyn) == max(r_nosyn), "Synaptic currents detected")
-
-    def test_transmitter_receiver(self):
-        if not p.parallel.id():
-            cell2 = neuron_build(self.p75_expsyn)
-            ais = cell2.filter_sections(["soma"])[0].locations[-1]
-            cell2.insert_transmitter(1, ais)
-            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
-                start=0, number=5, interval=10, weight=1, delay=1
-            )
-
-        cell = neuron_build(self.p75_expsyn)
-        cell.insert_receiver(1, "ExpSyn", (0, 0), weight=0.04, delay=1)
-        r = p.record(cell.get_segment((0, 0), 0.5))
-        spt, spid = p.parallel.spike_record()
-        p.parallel._warn_new_gids = False
-
-        p.run(100)
-
-        arr = np.array(p.parallel.py_allgather([*r])).T
-        self.assertEqual(2, len(spid), "Expected 2 spikes")
-        self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
-        self.assertNotEqual(min(r), max(r), "no current detected")
-
-    def test_double_transmitter_receiver(self):
-        # Tests that NEURON still only transmits spikes from 1 detector per Section
-        if not p.parallel.id():
-            cell2 = neuron_build(self.p75_expsyn)
-            ais = cell2.filter_sections(["soma"])[0].locations[-1]
-            cell2.insert_transmitter(2, ais)
-            # Arborize doesn't let you place 2 transmitters on the same section,
-            # so bypass the security measure with some magic.
-            la = cell2.get_location(ais)
-            tm = p.ParallelCon(cell2.get_segment(ais, 0.5), 3)
-            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
-                start=0, number=5, interval=10, weight=1, delay=1
-            )
-
-        cell = neuron_build(self.p75_expsyn)
-        cell.insert_receiver(2, "ExpSyn", (0, 0), weight=0.04, delay=1)
-        cell.insert_receiver(3, "ExpSyn", (0, 0), weight=0.04, delay=50)
-        spt, spid = p.parallel.spike_record()
-        p.parallel._warn_new_gids = False
-
-        p.run(100)
-
-        # If you'd insert more than 1 threshold detectors into the same Section,
-        # only 1 of them would actually detect thresholds, go figure. If this assert fails
-        # NEURON finally fixed that! :tada:
-        self.assertEqual(
-            2, len(spid), "NEURON stopped silently not doing what it should! Yay?"
-        )
 
     def test_cable_building(self):
         self.cell010.definition = define_model(
@@ -163,6 +117,66 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(137.5, na["ena"][0])
         self.assertEqual(20, na["nai"][0])
         self.assertEqual(130, na["nao"][0])
+
+
+@unittest.skipIf(
+    "NRN_SEGFAULT" not in os.environ,
+    "Run these tests separately. See https://github.com/neuronsimulator/nrn/issues/2641",
+)
+class TestTransmission(SchematicsFixture, unittest.TestCase):
+    def test_transmitter_receiver(self):
+        if not p.parallel.id():
+            cell2 = neuron_build(self.p75_expsyn)
+            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            cell2.insert_transmitter(1, ais)
+            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
+                start=0, number=5, interval=10, weight=1, delay=1
+            )
+
+        cell = neuron_build(self.p75_expsyn)
+        cell.insert_receiver(1, "ExpSyn", (0, 0), weight=0.04, delay=1)
+        r = p.record(cell.get_segment((0, 0), 0.5))
+        spt, spid = p.parallel.spike_record()
+        p.parallel._warn_new_gids = False
+
+        p.run(100)
+
+        arr = np.array(p.parallel.py_allgather([*r])).T
+        self.assertEqual(2, len(spid), "Expected 2 spikes")
+        self.assertTrue(np.allclose(np.diff(arr, axis=1), 0), "diff across nodes")
+        self.assertNotEqual(min(r), max(r), "no current detected")
+
+    def test_double_transmitter_receiver(self):
+        # We insert 2 transmitters that SHOULD each cause a spike in their receiver. But
+        # NEURON is broken and transmits spikes only through 1 detector per Section.
+        # If this test starts failing, NEURON fixed the issue, and we can simplify our
+        # logic.
+        if not p.parallel.id():
+            cell2 = neuron_build(self.p75_expsyn)
+            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            cell2.insert_transmitter(2, ais)
+            # Arborize doesn't let you place 2 transmitters on the same section for this reason,
+            # so bypass the security measure by manually inserting another PCon.
+            p.ParallelCon(cell2.get_segment(ais, 0.5), 3)
+            cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
+                start=0, number=5, interval=10, weight=1, delay=1
+            )
+
+        cell = neuron_build(self.p75_expsyn)
+        cell.insert_receiver(2, "ExpSyn", (0, 0), weight=0.08, delay=1)
+        cell.insert_receiver(3, "ExpSyn", (0, 0), weight=0.08, delay=50)
+        spt, spid = p.parallel.spike_record()
+        p.parallel._warn_new_gids = False
+
+        p.finitialize()
+        p.run(100)
+
+        # If you'd insert more than 1 threshold detectors into the same Section,
+        # only 1 of them would actually detect thresholds, go figure. If this assert fails
+        # NEURON finally fixed that! :tada:
+        self.assertEqual(
+            1, len(spid), "NEURON stopped silently not doing what it should! Yay?"
+        )
 
 
 tagsGrC = {

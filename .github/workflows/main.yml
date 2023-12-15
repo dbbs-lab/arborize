@@ -38,4 +38,6 @@ jobs:
       run: |
         coverage run --parallel-mode -m unittest
         mpiexec -n 2 coverage run --parallel-mode -m unittest
+        NRN_SEGFAULT=1 coverage run --parallel-mode -m unittest
+        NRN_SEGFAULT=1 mpiexec -n 2 coverage run --parallel-mode -m unittest
         bash <(curl -s https://codecov.io/bash)
