@@ -48,14 +48,14 @@ class Schematic:
         self._frozen = False
         self._definition: ModelDefinition = ModelDefinition()
         self.cables: list["CableBranch"] = []
-        self.units: list["UnitBranch"] = []
+        self.roots: list["UnitBranch"] = []
         self._named = 0
 
     def __iter__(self) -> typing.Iterator["UnitBranch"]:
         """
         Iterate over the unit branches depth-first order.
         """
-        stack: deque["UnitBranch"] = deque(self.units)
+        stack: deque["UnitBranch"] = deque(self.roots)
         while True:
             try:
                 branch = stack.pop()
@@ -145,24 +145,25 @@ class Schematic:
                 f"Locations need to be constructed in order. Can't construct {location}"
                 f", should have constructed ({bid}, {len(branch.points)}) next."
             ) from None
-        # We append the point to the virtual branch, this may create new true branches.
+        # We append the point to the cable, this may create new units.
         point = branch.append(location, coords, radii, labels)
         if endpoint:
-            # If an endpoint was passed, we should set that as our parent
+            # If an endpoint was passed, we should set that as our parent both at the
+            # cable and unit level.
             cable_parent = self.cables[endpoint[0]]
             unit_parent = cable_parent.points[endpoint[1]].branch
-            # Set virtual parent
+            # Set the child's parent cable
             branch.parent = cable_parent
-            # Set virtual child
+            # Add the parent's child cable
             cable_parent.children.append(branch)
-            # Set true branch parent
+            # Set the child's parent unit
             point.branch.parent = unit_parent
-            # Set true branch child
+            # Add the parent's child unit
             unit_parent.children.append(point.branch)
         elif pid == 0:
             # Otherwise, the first point of a branch without an endpoint should be added
             # to the roots of the schematic.
-            self.units.append(point.branch)
+            self.roots.append(point.branch)
 
     def create_empty(self):
         """Create an empty branch"""
@@ -183,7 +184,7 @@ class Schematic:
     def freeze(self):
         """Freeze the schematic. Most mutating operations will no longer be permitted."""
         if not self._frozen:
-            self._flatten_branches(self.units)
+            self._flatten_branches(self.roots)
             self._name = self._name if self._name is not None else _random_name()
             self._frozen = True
 
