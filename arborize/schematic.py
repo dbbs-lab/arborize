@@ -11,6 +11,7 @@ import errr
 
 if typing.TYPE_CHECKING:
     from .parameter import Parameter
+    from builders._arbor import CableCellTemplate
 
 Location = tuple[int, int]
 Interval = tuple[Location, Location]
@@ -42,6 +43,8 @@ class Schematic:
     the true branches, so that we can arbitrarily split up true branches into smaller
     pieces to achieve the resolution we need.
     """
+
+    arbor: typing.Optional["CableCellTemplate"]
 
     def __init__(self, name=None):
         self._name = name
@@ -109,7 +112,9 @@ class Schematic:
         self._named += 1
         return f"{self._name}_{self._named}"
 
-    def create_location(self, location, coords, radii, labels, endpoint=None):
+    def create_location(
+        self, location: tuple[int, int], coords, radii, labels, endpoint=None
+    ):
         """
         Add a new location to the schematic. A location is a tuple of the branch id and
         point-on-branch id. Locations must be appended in ascending order.
@@ -236,9 +241,7 @@ class Schematic:
 
 
 class Point:
-    branch: "UnitBranch"
-
-    def __init__(self, loc, branch, coords, radius):
+    def __init__(self, loc, branch: "UnitBranch", coords, radius):
         self.loc = loc
         self.coords = coords
         self.radius = radius

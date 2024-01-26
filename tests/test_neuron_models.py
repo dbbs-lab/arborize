@@ -118,6 +118,12 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(20, na["nai"][0])
         self.assertEqual(130, na["nao"][0])
 
+    def test_morphology(self):
+        cell = neuron_build(self.p75_pas)
+        n_locs = sum(len(c.points) for c in self.p75_pas.cables)
+        self.assertEqual(len(self.p75_pas.cables), len(cell.sections), "missing cables")
+        self.assertEqual(n_locs, sum(s.n3d() for s in cell.sections), "missing locs")
+
 
 @unittest.skipIf(
     "NRN_SEGFAULT" not in os.environ,
