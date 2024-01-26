@@ -32,7 +32,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install . --no-deps
         pip install -r requirements.txt --prefer-binary
-        pip install bsb==4.0.0a57
         pip install -e .
     - name: Run tests & coverage
       run: |
