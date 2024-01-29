@@ -143,13 +143,13 @@ class Schematic:
             raise ConstructionError(
                 f"Locations need to be constructed in order. Can't construct "
                 f"{location}, should construct {next_loc} or ({next_bid}.0)."
-            ) from None
+            )
         if pid != len(branch.points):
             # Ascending point order violated
             raise ConstructionError(
                 f"Locations need to be constructed in order. Can't construct {location}"
-                f", should have constructed ({bid}, {len(branch.points)}) next."
-            ) from None
+                f", should construct ({bid}, {len(branch.points)}) or ({next_bid}.0)."
+            )
         # We append the point to the cable, this may create new units.
         point = branch.append(location, coords, radii, labels)
         if endpoint:
