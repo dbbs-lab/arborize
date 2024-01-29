@@ -9,6 +9,7 @@ MechIdTuple = typing.Union[tuple[str], tuple[str, str], tuple[str, str, str]]
 MechId = typing.Union[str, MechIdTuple]
 
 
+@dataclasses.dataclass
 class Copy:
     def copy(self):
         other = type(self)()
@@ -17,6 +18,7 @@ class Copy:
         return other
 
 
+@dataclasses.dataclass
 class Merge:
     def merge(self, other):
         for field in dataclasses.fields(self):
@@ -25,6 +27,7 @@ class Merge:
                 setattr(self, field.name, value)
 
 
+@dataclasses.dataclass
 class Assert:
     def assert_(self):
         for field in dataclasses.fields(self):
@@ -47,6 +50,13 @@ class CableProperties(Copy, Merge, Assert):
         return other
 
 
+CablePropertiesDict = typing.TypedDict(
+    "CablePropertiesDict",
+    {"Ra": float, "cm": float},
+    total=False,
+)
+
+
 @dataclasses.dataclass
 class Ion(Copy, Merge, Assert):
     rev_pot: float = None
@@ -54,10 +64,15 @@ class Ion(Copy, Merge, Assert):
     ext_con: float = None
 
 
-class Mechanism:
-    parameters: dict[str, float]
+IonDict = typing.TypedDict(
+    "IonDict",
+    {"rev_pot": float, "int_con": float, "ext_con": float},
+    total=False,
+)
 
-    def __init__(self, parameters):
+
+class Mechanism:
+    def __init__(self, parameters: dict[str, float]):
         self.parameters = parameters
 
     def merge(self, other):
@@ -77,6 +92,16 @@ class Synapse(Mechanism):
 
     def copy(self):
         return Synapse(self.parameters.copy(), to_mech_id(self.mech_id))
+
+
+SynapseDict = typing.Union[
+    dict[str, float],
+    typing.TypedDict(
+        "SynapseDict",
+        {"mechanism": MechId, "parameters": dict[str, float]},
+        total=False,
+    ),
+]
 
 
 def is_mech_id(mech_id):
@@ -200,6 +225,18 @@ class CableType:
         self.synapses[label] = synapse
 
 
+CableTypeDict = typing.TypedDict(
+    "CableTypeDict",
+    {
+        "cable": CablePropertiesDict,
+        "mechanisms": dict[MechId, dict[str, float]],
+        "ions": dict[str, IonDict],
+        "synapses": dict[str, SynapseDict],
+    },
+    total=False,
+)
+
+
 class default_ions_dict(dict):
     def __init__(self):
         super().__init__()
@@ -233,10 +270,10 @@ class ModelDefinition:
             model.add_synapse_type(label, def_)
         return model
 
-    def get_cable_types(self):
+    def get_cable_types(self) -> dict[str, CableType]:
         return {k: v.copy() for k, v in self._cable_types.items()}
 
-    def get_synapse_types(self):
+    def get_synapse_types(self) -> dict[str, Synapse]:
         return {k: v.copy() for k, v in self._synapse_types.items()}
 
     def add_cable_type(self, label: str, def_: CableType):
@@ -253,6 +290,28 @@ class ModelDefinition:
         self._synapse_types[label] = synapse
 
 
+ModelDefinitionDict = typing.TypedDict(
+    "ModelDefinitionDict",
+    {"cable_types": dict[str, CableTypeDict], "synapse_types": dict[str, SynapseDict]},
+    total=False,
+)
+
+
+@typing.overload
+def define_model(
+    template: ModelDefinition,
+    definition: ModelDefinitionDict,
+    /,
+    use_defaults: bool = ...,
+):
+    ...
+
+
+@typing.overload
+def define_model(definition: ModelDefinitionDict, /, use_defaults: bool = ...):
+    ...
+
+
 def define_model(templ_or_def, def_dict=None, /, use_defaults=False):
     if def_dict is None:
         model = _parse_dict_def(templ_or_def)
@@ -263,7 +322,7 @@ def define_model(templ_or_def, def_dict=None, /, use_defaults=False):
     return model
 
 
-def _parse_dict_def(def_dict):
+def _parse_dict_def(def_dict: ModelDefinitionDict):
     model = ModelDefinition()
     for label, def_input in def_dict.get("cable_types", {}).items():
         ct = _parse_cable_type(def_input)
@@ -274,7 +333,7 @@ def _parse_dict_def(def_dict):
     return model
 
 
-def _parse_cable_type(cable_dict):
+def _parse_cable_type(cable_dict: CableTypeDict):
     try:
         def_ = CableType()
         for k, v in cable_dict.get("cable", {}).items():
@@ -293,14 +352,14 @@ def _parse_cable_type(cable_dict):
         )
 
 
-def _parse_ion_def(ion_dict):
+def _parse_ion_def(ion_dict: IonDict):
     try:
         return Ion(**ion_dict)
     except Exception:
         raise ModelDefinitionError(f"{ion_dict} is not a valid ion definition.")
 
 
-def _parse_mech_def(mech_dict):
+def _parse_mech_def(mech_dict: dict[str, float]):
     try:
         mech = Mechanism(mech_dict.copy())
         return mech
@@ -308,14 +367,14 @@ def _parse_mech_def(mech_dict):
         raise ModelDefinitionError(f"{mech_dict} is not a valid mechanism definition.")
 
 
-def _parse_synapse_def(key, synapse_dict):
+def _parse_synapse_def(key, synapse_dict: SynapseDict):
     try:
         synapse = Synapse(
             synapse_dict.get("parameters", synapse_dict).copy(),
             synapse_dict.get("mechanism", key),
         )
         return synapse
-    except Exception as e:
+    except Exception:
         raise ModelDefinitionError(f"{synapse_dict} is not a valid synapse definition.")
 
 
