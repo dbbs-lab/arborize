@@ -1,11 +1,14 @@
+import dataclasses
 import typing
 from collections import defaultdict
 from itertools import tee
 
 import arbor
 
+
 if typing.TYPE_CHECKING:
-    from ..schematic import Schematic, Point
+    from .. import CableType
+    from ..schematic import CableBranch, Schematic, Point
 
 
 class CableCellTemplate:
@@ -17,7 +20,7 @@ class CableCellTemplate:
         self.decor = decor
 
     def build(self):
-        return arbor.cable_cell(self.morphology, self.labels, self.decor)
+        return arbor.cable_cell(self.morphology, self.decor, self.labels)
 
 
 def hash_labelset(labels: list[str]):
@@ -25,7 +28,7 @@ def hash_labelset(labels: list[str]):
 
 
 def get_label_dict(schematic: "Schematic"):
-    labelsets = {}
+    labelsets: dict[str, int] = {}
     label_dict = defaultdict(list)
     for b in schematic.cables:
         for p in b.points:
@@ -45,29 +48,60 @@ def get_label_dict(schematic: "Schematic"):
     )
 
 
+def paint_cable_type(decor: arbor.decor, label: str, cable_type: "CableType"):
+    decor.paint(
+        f'"{label}"',
+        cm=cable_type.cable.cm * arbor.units.F / arbor.units.m2,
+        rL=cable_type.cable.Ra * arbor.units.Ohm * arbor.units.cm,
+    )
+    units = {
+        "rev_pot": arbor.units.mV,
+        "int_con": arbor.units.mM,
+        "ext_con": arbor.units.mM,
+    }
+    for ion_name, ion in cable_type.ions.items():
+        decor.paint(
+            f'"{label}"',
+            ion=ion_name,
+            **{k: v * units.get(k) for k, v in dataclasses.asdict(ion).items()},
+        )
+
+
+def get_decor(schematic: "Schematic"):
+    decor = arbor.decor()
+    for label, cable_type in schematic.definition.get_cable_types().items():
+        paint_cable_type(decor, label, cable_type)
+
+    return decor
+
+
 def arbor_build(schematic: "Schematic"):
     schematic.freeze()
     if not hasattr(schematic, "arbor"):
         tree = arbor.segment_tree()
         # Stores the ids of the segments to append to.
-        branch_endpoints = {}
+        branch_endpoints: dict["CableBranch", int] = {}
         labelsets, label_dict = get_label_dict(schematic)
         for bid, branch in enumerate(schematic.cables):
             if len(branch.points) < 2:
                 # Empty branches mess up the branch id numbering, so we forbid them
                 raise RuntimeError(f"Branch {bid} needs at least 2 points.")
             pts = iter(branch.points)
+            # Set up pairwise iterators
             pts_a, pts_b = tee(pts)
-            first_pt = next(pts_b)
+            next(pts_b)
+            # Start branch from the endpoint, if the branch has a parent.
             ptid = branch_endpoints[branch.parent] if branch.parent else arbor.mnpos
-            p1: Point
-            p2: Point
             for i, (p1, p2) in enumerate(zip(pts_a, pts_b)):
+                # Tag it with a unique tag per label combination
                 tag = hash_labelset(p2.branch.labels)
                 ptid = tree.append(ptid, _mkpt(p1), _mkpt(p2), tag=labelsets.get(tag))
             branch_endpoints[branch] = ptid
+
         schematic.arbor = CableCellTemplate(
-            arbor.morphology(tree), label_dict, arbor.decor()
+            arbor.morphology(tree),
+            label_dict,
+            get_decor(schematic),
         )
     return schematic.arbor.build()
 

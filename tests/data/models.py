@@ -7,6 +7,7 @@ pas = define_model(
             "soma": {
                 "cable": {"Ra": 10, "cm": 1},
                 "mechanisms": {"pas": {"e": -70, "g": 0.01}},
+                "ions": {"ca": {"rev_pot": 10, "int_con": 10, "ext_con": 10}},
             },
             "apical_dendrite": {
                 "cable": {"Ra": 10, "cm": 1},

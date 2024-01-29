@@ -3,7 +3,7 @@ from itertools import zip_longest
 
 import arbor
 
-from arborize.builders._arbor import get_label_dict
+from arborize.builders._arbor import get_decor, get_label_dict, hash_labelset
 from ._shared import SchematicsFixture
 from arborize import Schematic, arbor_build
 
@@ -62,8 +62,18 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(len(self.schematic.cables), n_branches)
         self.assertEqual(sum(len(c.points) for c in self.schematic.cables), n_points)
 
-    def test_arbor_build_painting(self):
-        self.cell
+    def test_arbor_build_ion_painting(self):
+        decor = get_decor(self.schematic)
+        paintings = {str(p) for p in decor.paintings()}
+        self.assertIn("('(region \"soma\")', cao=10)", paintings)
+        self.assertIn("('(region \"soma\")', eca=10)", paintings)
+        self.assertIn("('(region \"soma\")', cai=10)", paintings)
+
+    def test_arbor_build_cable_painting(self):
+        decor = get_decor(self.schematic)
+        paintings = {str(p) for p in decor.paintings()}
+        self.assertIn("('(region \"apical_dendrite\")', Ra10)", paintings)
+        self.assertIn("('(region \"apical_dendrite\")', Cm=1)", paintings)
 
 
 class TestModelLabelDict(unittest.TestCase):
@@ -92,6 +102,15 @@ class TestModelLabelDict(unittest.TestCase):
         self.assertDictEqual(
             {"soma": "(join (tag 0) (tag 1))", "nonsoma": "(tag 1)"}, label_dict
         )
+
+    def test_label_dict_hash(self):
+        schematic = Schematic()
+        schematic.create_location((0, 0), [0, 0, 0], 1, ["soma"])
+        schematic.create_location((0, 1), [0, 0, 1], 1, ["soma", "nonsoma"])
+        labelsets, label_dict = get_label_dict(schematic)
+        self.assertEqual(0, labelsets.get(hash_labelset(["soma"])))
+        self.assertEqual(1, labelsets.get(hash_labelset(["nonsoma", "soma"])))
+        self.assertEqual(1, labelsets.get(hash_labelset(["nonsoma", "soma"])))
 
 
 def _mkpt(p: "Point") -> arbor.mpoint:
