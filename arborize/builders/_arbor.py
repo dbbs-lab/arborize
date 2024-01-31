@@ -2,6 +2,7 @@ import dataclasses
 import typing
 from collections import defaultdict
 from itertools import tee
+from math import isnan
 
 import arbor
 
@@ -48,12 +49,25 @@ def get_label_dict(schematic: "Schematic"):
     )
 
 
-def paint_cable_type(decor: arbor.decor, label: str, cable_type: "CableType"):
+def _to_units(value, unit: arbor.units.unit) -> arbor.units.quantity:
+    if isinstance(value, arbor.units.quantity):
+        ret = value.value_as(unit)
+        if isnan(ret):
+            raise ValueError(f"Can't convert {value.units} to {unit}.")
+        return ret * unit
+    else:
+        return value * unit
+
+
+def paint_cable_type_cable(decor: arbor.decor, label: str, cable_type: "CableType"):
     decor.paint(
         f'"{label}"',
-        cm=cable_type.cable.cm * arbor.units.F / arbor.units.m2,
-        rL=cable_type.cable.Ra * arbor.units.Ohm * arbor.units.cm,
+        cm=_to_units(cable_type.cable.cm, arbor.units.F / arbor.units.m2),
+        rL=_to_units(cable_type.cable.Ra, arbor.units.Ohm * arbor.units.cm),
     )
+
+
+def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType"):
     units = {
         "rev_pot": arbor.units.mV,
         "int_con": arbor.units.mM,
@@ -63,8 +77,24 @@ def paint_cable_type(decor: arbor.decor, label: str, cable_type: "CableType"):
         decor.paint(
             f'"{label}"',
             ion=ion_name,
-            **{k: v * units.get(k) for k, v in dataclasses.asdict(ion).items()},
+            **{
+                k: _to_units(v, units.get(k))
+                for k, v in dataclasses.asdict(ion).items()
+            },
         )
+
+
+def paint_cable_type_mechanisms(
+    decor: arbor.decor, label: str, cable_type: "CableType"
+):
+    for mech_id, mech in cable_type.mechs.items():
+        decor.paint(f'"{label}"', arbor.density(mech_id, mech.parameters))
+
+
+def paint_cable_type(decor: arbor.decor, label: str, cable_type: "CableType"):
+    paint_cable_type_cable(decor, label, cable_type)
+    paint_cable_type_ions(decor, label, cable_type)
+    paint_cable_type_mechanisms(decor, label, cable_type)
 
 
 def get_decor(schematic: "Schematic"):

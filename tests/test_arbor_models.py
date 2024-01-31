@@ -75,6 +75,15 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertIn("('(region \"apical_dendrite\")', Ra10)", paintings)
         self.assertIn("('(region \"apical_dendrite\")', Cm=1)", paintings)
 
+    def test_arbor_build_mech_painting(self):
+        decor = get_decor(self.schematic)
+        pas = [
+            (label, mech.mech.values)
+            for label, mech in decor.paintings()
+            if isinstance(mech, arbor.density) and mech.mech.name == "pas"
+        ]
+        self.assertEqual([('(region "soma")', {"e": -70, "g": 0.01})], pas)
+
 
 class TestModelLabelDict(unittest.TestCase):
     def assertDictEqual(self, d1, d2, msg: str = None):
