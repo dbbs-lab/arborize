@@ -33,9 +33,8 @@ def file_schematic(
             return file_schematic(abspath, definitions)
         finally:
             os.unlink(abspath)
-    import morphio
 
-    morpho = morphio.Morphology(os.fspath(file_like))
+    morpho = Morphology(os.fspath(file_like))
     schematic = Schematic(name=name)
     branches = [
         morpho.soma,
