@@ -3,9 +3,10 @@ from itertools import zip_longest
 
 import arbor
 
-from arborize.builders._arbor import get_decor, get_label_dict, hash_labelset
-from ._shared import SchematicsFixture
 from arborize import Schematic, arbor_build
+from arborize.builders._arbor import get_decor, get_label_dict, hash_labelset
+
+from ._shared import SchematicsFixture
 
 
 class TestModelBuilding(SchematicsFixture, unittest.TestCase):
@@ -65,15 +66,22 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
     def test_arbor_build_ion_painting(self):
         decor = get_decor(self.schematic)
         paintings = {str(p) for p in decor.paintings()}
-        self.assertIn("('(region \"soma\")', cao=10)", paintings)
-        self.assertIn("('(region \"soma\")', eca=10)", paintings)
-        self.assertIn("('(region \"soma\")', cai=10)", paintings)
+        # todo: drop when units are released
+        # Support pre-units occurences of `scalar`
+        value = "(scalar 10)" if "scalar" in str(paintings.values()) else "10"
+        self.assertIn(f"('(region \"soma\")', cao={value})", paintings)
+        self.assertIn(f"('(region \"soma\")', eca={value})", paintings)
+        self.assertIn(f"('(region \"soma\")', cai={value})", paintings)
 
     def test_arbor_build_cable_painting(self):
         decor = get_decor(self.schematic)
         paintings = {str(p) for p in decor.paintings()}
-        self.assertIn("('(region \"apical_dendrite\")', Ra10)", paintings)
-        self.assertIn("('(region \"apical_dendrite\")', Cm=1)", paintings)
+        # todo: drop when units are released
+        # Support pre-units occurences of `scalar`
+        Ra = "(scalar 10)" if "scalar" in str(paintings.values()) else "10"
+        cm = "(scalar 1)" if "scalar" in str(paintings.values()) else "1"
+        self.assertIn(f"('(region \"apical_dendrite\")', Ra{Ra})", paintings)
+        self.assertIn(f"('(region \"apical_dendrite\")', Cm={cm})", paintings)
 
     def test_arbor_build_mech_painting(self):
         decor = get_decor(self.schematic)
