@@ -68,7 +68,7 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         paintings = {str(p) for p in decor.paintings()}
         # todo: drop when units are released
         # Support pre-units occurences of `scalar`
-        value = "(scalar 10)" if "scalar" in str(paintings.values()) else "10"
+        value = "(scalar 10)" if "scalar" in str(paintings) else "10"
         self.assertIn(f"('(region \"soma\")', cao={value})", paintings)
         self.assertIn(f"('(region \"soma\")', eca={value})", paintings)
         self.assertIn(f"('(region \"soma\")', cai={value})", paintings)
@@ -78,8 +78,8 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         paintings = {str(p) for p in decor.paintings()}
         # todo: drop when units are released
         # Support pre-units occurences of `scalar`
-        Ra = "(scalar 10)" if "scalar" in str(paintings.values()) else "10"
-        cm = "(scalar 1)" if "scalar" in str(paintings.values()) else "1"
+        Ra = "(scalar 10)" if "scalar" in str(paintings) else "10"
+        cm = "(scalar 1)" if "scalar" in str(paintings) else "1"
         self.assertIn(f"('(region \"apical_dendrite\")', Ra{Ra})", paintings)
         self.assertIn(f"('(region \"apical_dendrite\")', Cm={cm})", paintings)
 
