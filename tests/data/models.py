@@ -30,3 +30,13 @@ expsyn = define_model(
     },
     use_defaults=True,
 )
+hh_soma = define_model(
+    {
+        "cable_types": {
+            "soma": {
+                "cable": {"Ra": 10, "cm": 1},
+                "mechanisms": {"pas": {}, "hh": {}},
+            }
+        }
+    }
+)

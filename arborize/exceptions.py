@@ -9,7 +9,7 @@ _make_tree(
             "model",
             TransmitterError=_e("section"),
             UnknownLocationError=_e("location"),
-            UnknownSynapseError=_e("synapse"),
+            UnknownSynapseError=_e("instance", "synapse"),
         ),
         SchematicError=_e("schematic", ConstructionError=_e(), FrozenError=_e()),
     ),

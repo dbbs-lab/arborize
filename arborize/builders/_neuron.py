@@ -55,6 +55,13 @@ class NeuronModel:
 
         la = self.get_location(loc)
         synapses = la.section.synapse_types
+        if not synapses:
+            raise UnknownSynapseError(
+                f"Can't insert synapses. No synapse types present on branch with labels "
+                + errr.quotejoin(la.section.labels),
+                self,
+                label,
+            )
         try:
             synapse = synapses[label]
         except KeyError:
@@ -85,6 +92,7 @@ class NeuronModel:
         from patch import p
 
         synapse = self.insert_synapse(label, loc, attributes, sx)
+        synapse.gid = gid
         if source is None:
             return p.ParallelCon(gid, synapse, **kwargs)
         else:
