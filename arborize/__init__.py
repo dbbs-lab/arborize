@@ -3,18 +3,18 @@ Write descriptions for NEURON cell models in an Arbor-like manner for both the A
 NEURON brain simulation engines.
 """
 
-from .builders import neuron_build, arbor_build
-from .schematics import file_schematic, bsb_schematic
+from .builders import arbor_build, neuron_build
 from .definitions import (
-    CableType,
     CableProperties,
+    CableType,
     Ion,
     Mechanism,
-    is_mech_id,
     ModelDefinition,
     define_model,
+    is_mech_id,
 )
 from .schematic import Schematic
+from .schematics import bsb_schematic, file_schematic
 
 __version__ = "4.0.0b2"
 __all__ = [

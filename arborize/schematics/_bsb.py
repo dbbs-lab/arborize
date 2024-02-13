@@ -1,9 +1,11 @@
-from typing import Optional, TYPE_CHECKING
-from ..schematic import Schematic
 import itertools
+from typing import TYPE_CHECKING, Optional
+
+from ..schematic import Schematic
 
 if TYPE_CHECKING:
-    from bsb.morphologies import Morphology, Branch
+    from bsb.morphologies import Branch, Morphology
+
     from ..schematic import ModelDefinition
 
 

@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 
 from arborize import define_model
-from tests._shared import SchematicsFixture
 from arborize.schematics import file_schematic
+from tests._shared import SchematicsFixture
 
 
 class TestFileSchematic(SchematicsFixture, unittest.TestCase):

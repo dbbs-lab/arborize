@@ -1,4 +1,5 @@
-from typing import Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
+
 import numpy as np
 import numpy.typing as npt
 

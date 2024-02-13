@@ -1,14 +1,13 @@
 import os
 import unittest
 
-from ._shared import SchematicsFixture
-from arborize import define_model, neuron_build
-from arborize.exceptions import (
-    UnknownLocationError,
-    UnknownSynapseError,
-)
-from patch import p
 import numpy as np
+from patch import p
+
+from arborize import define_model, neuron_build
+from arborize.exceptions import UnknownLocationError, UnknownSynapseError
+
+from ._shared import SchematicsFixture
 
 
 @unittest.skipIf(

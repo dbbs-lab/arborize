@@ -1,17 +1,17 @@
 import typing
 from collections import deque
-from typing import Optional, Union, Iterable
-
-from ._util import get_location_name
-from .exceptions import ConstructionError, FrozenError, ModelDefinitionError
-
-from .definitions import CableType, ModelDefinition
+from typing import Iterable, Optional, Union
 
 import errr
 
+from ._util import get_location_name
+from .definitions import CableType, ModelDefinition
+from .exceptions import ConstructionError, FrozenError, ModelDefinitionError
+
 if typing.TYPE_CHECKING:
-    from .parameter import Parameter
     from builders._arbor import CableCellTemplate
+
+    from .parameter import Parameter
 
 Location = tuple[int, int]
 Interval = tuple[Location, Location]

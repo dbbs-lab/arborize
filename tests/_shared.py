@@ -1,4 +1,5 @@
 import typing
+
 from .data import schematics
 
 if typing.TYPE_CHECKING:

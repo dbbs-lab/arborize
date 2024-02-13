@@ -1,18 +1,19 @@
 import dataclasses
 import random
 import typing
-from typing import Mapping, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping, Sequence
 
 import errr
 
-from .._util import get_location_name, get_arclengths
-from ..definitions import CableProperties, MechId, Mechanism, mechdict, Ion
+from .._util import get_arclengths, get_location_name
+from ..definitions import CableProperties, Ion, Mechanism, MechId, mechdict
 from ..exceptions import TransmitterError, UnknownLocationError, UnknownSynapseError
 
 if TYPE_CHECKING:
-    from ..schematic import Location, Schematic
     from glia._glia import MechAccessor
     from patch.objects import PointProcess, Section, Segment
+
+    from ..schematic import Location, Schematic
 
 
 class NeuronModel:

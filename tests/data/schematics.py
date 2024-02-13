@@ -1,7 +1,10 @@
 import os as _os
 
 from arborize import file_schematic as _schema
-from .models import empty as _empty, pas as _pas, expsyn as _expsyn
+
+from .models import empty as _empty
+from .models import expsyn as _expsyn
+from .models import pas as _pas
 
 
 def _mpath(path):

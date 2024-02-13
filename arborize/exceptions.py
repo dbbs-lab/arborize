@@ -1,5 +1,7 @@
-from errr.tree import make_tree as _make_tree, exception as _e
 from typing import Type
+
+from errr.tree import exception as _e
+from errr.tree import make_tree as _make_tree
 
 _make_tree(
     globals(),

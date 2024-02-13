@@ -1,10 +1,12 @@
+import itertools
 import os
 import re
 import tempfile
-import itertools
-from typing import Optional, Union, TextIO
-from morphio import SomaType, Morphology
-from ..schematic import Schematic, ModelDefinition
+from typing import Optional, TextIO, Union
+
+from morphio import Morphology, SomaType
+
+from ..schematic import ModelDefinition, Schematic
 
 
 def file_schematic(
