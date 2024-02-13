@@ -6,10 +6,9 @@ from math import isnan
 
 import arbor
 
-
 if typing.TYPE_CHECKING:
     from .. import CableType
-    from ..schematic import CableBranch, Schematic, Point
+    from ..schematic import CableBranch, Point, Schematic
 
 
 class CableCellTemplate:
@@ -89,10 +88,7 @@ def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType
         decor.paint(
             f'"{label}"',
             ion=ion_name,
-            **{
-                k: _to_units(v, units[k])
-                for k, v in dataclasses.asdict(ion).items()
-            },
+            **{k: _to_units(v, units[k]) for k, v in dataclasses.asdict(ion).items()},
         )
 
 

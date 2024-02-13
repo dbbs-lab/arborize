@@ -1,5 +1,6 @@
 import dataclasses
 import typing
+
 from .exceptions import ModelDefinitionError
 
 if typing.TYPE_CHECKING:
