@@ -51,6 +51,7 @@ def get_label_dict(schematic: "Schematic"):
 
 
 def _to_units(value, unit: "arbor.units.unit") -> "arbor.units.quantity":
+    # todo: drop when units are released
     if hasattr(arbor, "units") and isinstance(value, arbor.units.quantity):
         ret = value.value_as(unit)
         if isnan(ret):
@@ -82,14 +83,30 @@ def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType
             "ext_con": arbor.units.mM,
         }
         if hasattr(arbor, "units")
+        # todo: drop when units are released
         else defaultdict(lambda: 1)
     )
     for ion_name, ion in cable_type.ions.items():
-        decor.paint(
-            f'"{label}"',
-            ion=ion_name,
-            **{k: _to_units(v, units[k]) for k, v in dataclasses.asdict(ion).items()},
-        )
+        try:
+            decor.paint(
+                f'"{label}"',
+                ion=ion_name,
+                **{
+                    k: _to_units(v, units[k])
+                    for k, v in dataclasses.asdict(ion).items()
+                },
+            )
+        except TypeError:
+            # todo: drop when units are released
+            # Support older `ion_name` kwarg
+            decor.paint(
+                f'"{label}"',
+                ion_name=ion_name,
+                **{
+                    k: _to_units(v, units[k])
+                    for k, v in dataclasses.asdict(ion).items()
+                },
+            )
 
 
 def paint_cable_type_mechanisms(
