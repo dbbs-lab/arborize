@@ -20,3 +20,6 @@ dev = ["sphinx", "sphinx_rtd_theme", "black==24.1.1"]
 
 [project.urls]
 Home = "https://github.com/dbbs-lab/arborize"
+
+[tool.isort]
+profile = "black"
