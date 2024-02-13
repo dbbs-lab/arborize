@@ -51,8 +51,8 @@ def get_label_dict(schematic: "Schematic"):
     )
 
 
-def _to_units(value, unit: arbor.units.unit) -> arbor.units.quantity:
-    if isinstance(value, arbor.units.quantity):
+def _to_units(value, unit: "arbor.units.unit") -> "arbor.units.quantity":
+    if hasattr(arbor, "units") and isinstance(value, arbor.units.quantity):
         ret = value.value_as(unit)
         if isnan(ret):
             raise ValueError(f"Can't convert {value.units} to {unit}.")
@@ -64,17 +64,27 @@ def _to_units(value, unit: arbor.units.unit) -> arbor.units.quantity:
 def paint_cable_type_cable(decor: arbor.decor, label: str, cable_type: "CableType"):
     decor.paint(
         f'"{label}"',
-        cm=_to_units(cable_type.cable.cm, arbor.units.F / arbor.units.m2),
-        rL=_to_units(cable_type.cable.Ra, arbor.units.Ohm * arbor.units.cm),
+        cm=_to_units(
+            cable_type.cable.cm,
+            (arbor.units.F / arbor.units.m2) if hasattr(arbor, "units") else 1,
+        ),
+        rL=_to_units(
+            cable_type.cable.Ra,
+            (arbor.units.Ohm * arbor.units.cm) if hasattr(arbor, "units") else 1,
+        ),
     )
 
 
 def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType"):
-    units = {
-        "rev_pot": arbor.units.mV,
-        "int_con": arbor.units.mM,
-        "ext_con": arbor.units.mM,
-    }
+    units = (
+        {
+            "rev_pot": arbor.units.mV,
+            "int_con": arbor.units.mM,
+            "ext_con": arbor.units.mM,
+        }
+        if hasattr(arbor, "units")
+        else defaultdict(lambda: 1)
+    )
     for ion_name, ion in cable_type.ions.items():
         decor.paint(
             f'"{label}"',
