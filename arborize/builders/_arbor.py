@@ -41,9 +41,11 @@ def get_label_dict(schematic: "Schematic"):
                 labelsets[h] = lset_id
     return labelsets, arbor.label_dict(
         {
-            label: "(join " + " ".join(f"(tag {tag})" for tag in tags) + ")"
-            if len(tags) > 1
-            else f"(tag {tags[0]})"
+            label: (
+                "(join " + " ".join(f"(tag {tag})" for tag in tags) + ")"
+                if len(tags) > 1
+                else f"(tag {tags[0]})"
+            )
             for label, tags in label_dict.items()
         }
     )
