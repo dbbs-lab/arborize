@@ -4,22 +4,27 @@ from collections import defaultdict
 from itertools import tee
 from math import isnan
 
-import arbor
-
 if typing.TYPE_CHECKING:
+    import arbor
+
     from .. import CableType
     from ..schematic import CableBranch, Point, Schematic
 
 
 class CableCellTemplate:
     def __init__(
-        self, morphology: arbor.morphology, labels: arbor.label_dict, decor: arbor.decor
+        self,
+        morphology: "arbor.morphology",
+        labels: "arbor.label_dict",
+        decor: "arbor.decor",
     ):
         self.morphology = morphology
         self.labels = labels
         self.decor = decor
 
     def build(self):
+        import arbor
+
         return arbor.cable_cell(self.morphology, self.decor, self.labels)
 
 
@@ -28,6 +33,8 @@ def hash_labelset(labels: list[str]):
 
 
 def get_label_dict(schematic: "Schematic"):
+    import arbor
+
     labelsets: dict[str, int] = {}
     label_dict = defaultdict(list)
     for b in schematic.cables:
@@ -51,6 +58,8 @@ def get_label_dict(schematic: "Schematic"):
 
 
 def _to_units(value, unit: "arbor.units.unit") -> "arbor.units.quantity":
+    import arbor
+
     # todo: drop when units are released
     if hasattr(arbor, "units") and isinstance(value, arbor.units.quantity):
         ret = value.value_as(unit)
@@ -61,7 +70,9 @@ def _to_units(value, unit: "arbor.units.unit") -> "arbor.units.quantity":
         return value * unit
 
 
-def paint_cable_type_cable(decor: arbor.decor, label: str, cable_type: "CableType"):
+def paint_cable_type_cable(decor: "arbor.decor", label: str, cable_type: "CableType"):
+    import arbor
+
     decor.paint(
         f'"{label}"',
         cm=_to_units(
@@ -75,7 +86,9 @@ def paint_cable_type_cable(decor: arbor.decor, label: str, cable_type: "CableTyp
     )
 
 
-def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType"):
+def paint_cable_type_ions(decor: "arbor.decor", label: str, cable_type: "CableType"):
+    import arbor
+
     units = (
         {
             "rev_pot": arbor.units.mV,
@@ -110,19 +123,23 @@ def paint_cable_type_ions(decor: arbor.decor, label: str, cable_type: "CableType
 
 
 def paint_cable_type_mechanisms(
-    decor: arbor.decor, label: str, cable_type: "CableType"
+    decor: "arbor.decor", label: str, cable_type: "CableType"
 ):
+    import arbor
+
     for mech_id, mech in cable_type.mechs.items():
         decor.paint(f'"{label}"', arbor.density(mech_id, mech.parameters))
 
 
-def paint_cable_type(decor: arbor.decor, label: str, cable_type: "CableType"):
+def paint_cable_type(decor: "arbor.decor", label: str, cable_type: "CableType"):
     paint_cable_type_cable(decor, label, cable_type)
     paint_cable_type_ions(decor, label, cable_type)
     paint_cable_type_mechanisms(decor, label, cable_type)
 
 
 def get_decor(schematic: "Schematic"):
+    import arbor
+
     decor = arbor.decor()
     for label, cable_type in schematic.definition.get_cable_types().items():
         paint_cable_type(decor, label, cable_type)
@@ -131,6 +148,8 @@ def get_decor(schematic: "Schematic"):
 
 
 def arbor_build(schematic: "Schematic"):
+    import arbor
+
     schematic.freeze()
     if not hasattr(schematic, "arbor"):
         tree = arbor.segment_tree()
@@ -161,5 +180,7 @@ def arbor_build(schematic: "Schematic"):
     return schematic.arbor.build()
 
 
-def _mkpt(p: "Point") -> arbor.mpoint:
+def _mkpt(p: "Point") -> "arbor.mpoint":
+    import arbor
+
     return arbor.mpoint(*p.coords, p.radius)

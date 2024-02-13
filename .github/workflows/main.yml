@@ -38,3 +38,13 @@ jobs:
         NRN_SEGFAULT=1 coverage run --parallel-mode -m unittest
         NRN_SEGFAULT=1 mpiexec -n 2 coverage run --parallel-mode -m unittest
         bash <(curl -s https://codecov.io/bash)
+    - name: Run Arbor tests without NEURON
+      run: |
+        pip uninstall neuron arbor -y
+        pip install -e .[arbor]
+        python -m unittest tests.test_arbor_models
+    - name: Run NEURON tests without Arbor
+      run: |
+        pip uninstall neuron arbor -y
+        pip install -e .[neuron]
+        python -m unittest tests.test_neuron_models
