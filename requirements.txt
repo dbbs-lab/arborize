@@ -1,7 +1,0 @@
-nrn-patch==4.0.0b3
-nmodl-glia==4.0.0b6
-morphio==3.3.7
-numpy==1.26.0
-errr==1.2.0
-coverage~=7.0
-mpi4py==3.1.5
