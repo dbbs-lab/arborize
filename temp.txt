@@ -1,0 +1,145 @@
+import dbbs_models
+from bsb.morphologies import parse_morphology_file
+import bluepyopt.ephys as ephys
+import bluepyopt as bpop
+
+from arborize.optimizers._bluepyopt import get_bpo_cell
+from arborize.schematics import bsb_schematic
+from arborize.builders import neuron_build
+
+morpho = parse_morphology_file("GranuleCell.swc", tags=dbbs_models.GranuleCellModel.swc_tags)
+definition = dbbs_models.GranuleCellModel
+def2 = definition.copy()
+
+# Tinker with definition so that Leak_gmax = [0.9, 1.1] bounds
+_params = [*def2._cable_types["soma"].mechs.values()][0].parameters
+_params["gmax"] = [_params["gmax"] * 0.999999, _params["gmax"] * 1.111111]
+del _params
+
+schema = bsb_schematic(morpho, dbbs_models.GranuleCellModel)
+cell = get_bpo_cell(schema, def2)
+print("PARAMS?", len(cell.params))
+
+soma_loc = ephys.locations.NrnSeclistCompLocation(
+    name="soma", seclist_name="soma", sec_index=0, comp_x=0.5
+)
+
+NUMBER_INDIVIDUALS = 1  # Number of individuals in offspring
+NUMBER_GENERATIONS = 1  # Maximum number of generations
+
+sweep_protocols = []
+for protocol_name, amplitude in [
+    ("step1", 0.01),
+    ("step2", 0.016),
+    ("step3", 0.022),
+]:  #
+    stim = ephys.stimuli.NrnSquarePulse(
+        step_amplitude=amplitude,
+        step_delay=100,
+        step_duration=2000,
+        location=soma_loc,
+        total_duration=2200,
+    )
+    rec = ephys.recordings.CompRecording(
+        name="%s.soma.v" % protocol_name, location=soma_loc, variable="v"
+    )
+    protocol = ephys.protocols.SweepProtocol(protocol_name, [stim], [rec])
+    sweep_protocols.append(protocol)
+threestep_protocol = ephys.protocols.SequenceProtocol(
+    "twostep", protocols=sweep_protocols
+)
+
+# NEURON sim
+nrn = ephys.simulators.NrnSimulator()
+
+# feature of obj function
+efel_feature_means = {
+    "step1": {
+        "AP_height": 20.93,
+        "ISI_CV": 0.261,
+        "AHP_depth_abs_slow": -52.69,
+        "AP_width": 0.665,
+        "voltage_base": -68.5,
+        "AHP_depth_abs": -59.21,
+        "time_to_first_spike": 31.9,
+        "adaptation_index2": 0.1062,
+        "mean_frequency": 25,
+    },
+    "step2": {
+        "AP_height": 19.255,
+        "ISI_CV": 0.14,
+        "AHP_depth_abs_slow": -48.935,
+        "AP_width": 0.695,
+        "voltage_base": -68.77,
+        "AHP_depth_abs": -58.3,
+        "time_to_first_spike": 19.0,
+        "adaptation_index2": 0.034,
+        "mean_frequency": 40,
+    },
+    "step3": {
+        "AP_height": 17.645,
+        "ISI_CV": 0.148,
+        "AHP_depth_abs_slow": -32.67,
+        "AP_width": 0.7135,
+        "voltage_base": -69.125,
+        "AHP_depth_abs": -57.191,
+        "time_to_first_spike": 14.65,
+        "adaptation_index2": 0.029,
+        "mean_frequency": 50,
+    },
+}
+
+# obj function
+objectives = []
+for protocol in sweep_protocols:
+    stim_start = protocol.stimuli[0].step_delay
+    stim_end = stim_start + protocol.stimuli[0].step_duration
+    for efel_feature_name, mean in efel_feature_means[protocol.name].items():
+        feature_name = "%s.%s" % (protocol.name, efel_feature_name)
+        feature = ephys.efeatures.eFELFeature(
+            feature_name,
+            efel_feature_name=efel_feature_name,
+            recording_names={"": "%s.soma.v" % protocol.name},
+            stim_start=stim_start,
+            stim_end=stim_end,
+            exp_mean=mean,
+            exp_std=0.1 * mean,
+        )
+        objective = ephys.objectives.SingletonObjective(feature_name, feature)
+        objectives.append(objective)
+score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives)
+
+print([(p.name, p.frozen) for p in cell.params.values()])
+# cell evaluator
+cell_evaluator = ephys.evaluators.CellEvaluator(
+    cell_model=cell,
+    param_names=[p.name for p in cell.params.values() if not p.frozen],
+    fitness_protocols={threestep_protocol.name: threestep_protocol},
+    fitness_calculator=score_calc,
+    sim=nrn,
+)
+
+# opt
+optimisation = bpop.optimisations.DEAPOptimisation(
+    evaluator=cell_evaluator,
+    offspring_size=NUMBER_INDIVIDUALS,
+    seed=333,
+)
+
+final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=NUMBER_GENERATIONS)
+
+# best individual
+best_ind = hall_of_fame[0]
+print("Best individual: ", best_ind)
+print("Fitness values: ", best_ind.fitness.values)
+
+grc = neuron_build(schema)
+
+best_ind_dict = cell_evaluator.param_dict(best_ind)
+responses = threestep_protocol.run(
+    cell_model=cell, param_values=best_ind_dict, sim=nrn
+)
+
+import plotly.graph_objs as go
+
+go.Figure([go.Scatter(x=resp["time"], y=resp["voltage"], name=name) for name, resp in responses.items()]).write_html("gpop.html")
