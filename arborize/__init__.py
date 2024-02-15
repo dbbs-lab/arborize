@@ -4,6 +4,7 @@ NEURON brain simulation engines.
 """
 
 from .builders import arbor_build, neuron_build
+from .constraints import define_constraints
 from .definitions import (
     CableProperties,
     CableType,
@@ -26,6 +27,7 @@ __all__ = [
     "Schematic",
     "arbor_build",
     "bsb_schematic",
+    "define_constraints",
     "define_model",
     "file_schematic",
     "is_mech_id",
