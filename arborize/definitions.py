@@ -95,7 +95,7 @@ class CableType:
     cable: CableProperties
     ions: dict[str, Ion]
     mechs: dict[MechId, Mechanism]
-    synapses: dict[str, Synapse]
+    synapses: dict[MechId, Synapse]
 
     def __init__(self):
         self.cable = CableProperties()
@@ -120,7 +120,7 @@ class CableType:
     @staticmethod
     def anchor(
         defs: typing.Iterable["CableType"],
-        synapses: dict[str, Synapse] = None,
+        synapses: dict[MechId, Synapse] = None,
         use_defaults: bool = False,
     ) -> "CableType":
         def_ = CableType() if not use_defaults else CableType.default()
@@ -271,7 +271,10 @@ class ModelDefinition(Definition[CableType, Synapse]):
 
 ModelDefinitionDict = typing.TypedDict(
     "ModelDefinitionDict",
-    {"cable_types": dict[str, CableTypeDict], "synapse_types": dict[str, SynapseDict]},
+    {
+        "cable_types": dict[str, CableTypeDict],
+        "synapse_types": dict[MechId, SynapseDict],
+    },
     total=False,
 )
 
