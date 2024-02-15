@@ -227,38 +227,46 @@ class default_ions_dict(dict):
         super().__setitem__(key, ion)
 
 
-class ModelDefinition:
+CT = typing.TypeVar("CT", bound=CableType)
+ST = typing.TypeVar("ST", bound=Synapse)
+
+
+class Definition(typing.Generic[CT, ST]):
     def __init__(self, use_defaults=False):
-        self._cable_types: dict[str, CableType] = {}
-        self._synapse_types: dict[str, Synapse] = {}
+        self._cable_types: dict[str, CT] = {}
+        self._synapse_types: dict[MechId, ST] = {}
         self.use_defaults = use_defaults
 
     def copy(self):
-        model = ModelDefinition(self.use_defaults)
+        model = type(self)(self.use_defaults)
         for label, def_ in self._cable_types.items():
             model.add_cable_type(label, def_.copy())
         for label, def_ in self._synapse_types.items():
             model.add_synapse_type(label, def_)
         return model
 
-    def get_cable_types(self) -> dict[str, CableType]:
+    def get_cable_types(self) -> dict[str, CT]:
         return {k: v.copy() for k, v in self._cable_types.items()}
 
-    def get_synapse_types(self) -> dict[str, Synapse]:
+    def get_synapse_types(self) -> dict[str, ST]:
         return {k: v.copy() for k, v in self._synapse_types.items()}
 
-    def add_cable_type(self, label: str, def_: CableType):
+    def add_cable_type(self, label: str, def_: CT):
         if label in self._cable_types:
             raise KeyError(f"Cable type {label} already exists.")
         self._cable_types[label] = def_
 
-    def add_synapse_type(self, label: typing.Union[str, MechId], synapse: Synapse):
+    def add_synapse_type(self, label: typing.Union[str, MechId], synapse: ST):
         mech_id = synapse.mech_id or to_mech_id(label)
         if not is_mech_id(mech_id):
             raise ValueError(f"'{mech_id}' is not a valid synapse mechanism.")
         if label in self._synapse_types:
             raise KeyError(f"Synapse type {label} already exists.")
         self._synapse_types[label] = synapse
+
+
+class ModelDefinition(Definition[CableType, Synapse]):
+    pass
 
 
 ModelDefinitionDict = typing.TypedDict(
