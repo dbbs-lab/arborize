@@ -6,9 +6,10 @@ import bluepyopt.ephys as ephys
 import glia
 
 from ..builders import neuron_build
+from ..constraints import Constraint, ConstraintsDefinition, ConstraintValue
 
 if typing.TYPE_CHECKING:
-    from .. import ModelDefinition, Schematic
+    from ..schematic import Schematic
 
 
 class ArborizeMorphology(ephys.morphologies.Morphology):
@@ -17,7 +18,6 @@ class ArborizeMorphology(ephys.morphologies.Morphology):
         self._schematic = schematic
 
     def instantiate(self, sim, icell):
-        self._start = time.time()
         arborized_cell = neuron_build(self._schematic)
         for label in self._schematic.get_cable_types().keys():
             section_list = getattr(icell, label)
@@ -25,8 +25,7 @@ class ArborizeMorphology(ephys.morphologies.Morphology):
                 section_list.append(sec.__neuron__())
 
     def destroy(self, sim=None):
-        """Destroy morphology instantiation"""
-        print("Presumably sim took:", round(time.time() - self._start), "seconds")
+        pass
 
 
 def get_bpo_cell(schematic, constraints, name_cell="cell"):
@@ -37,10 +36,10 @@ def get_bpo_cell(schematic, constraints, name_cell="cell"):
     )
 
 
-def load_mechs_params(constraints: "ModelDefinition"):
+def load_mechs_params(constraints: "ConstraintsDefinition"):
     cable_types = constraints.get_cable_types()
 
-    bpy_seclists = {
+    bpyopt_seclists = {
         label: ephys.locations.NrnSeclistLocation(label, seclist_name=label)
         for label in cable_types.keys()
     }
@@ -48,32 +47,26 @@ def load_mechs_params(constraints: "ModelDefinition"):
     mech_locations = defaultdict(list)
     for label, cable_type in cable_types.items():
         for mech in cable_type.mechs:
-            mech_locations[mech].append(bpy_seclists[label])
+            mech_locations[mech].append(bpyopt_seclists[label])
 
-    bpy_mechs = [
+    bpyopt_mechs = [
         ephys.mechanisms.NrnMODMechanism(
             name=glia.resolve(mech), prefix=glia.resolve(mech), locations=locations
         )
         for mech, locations in mech_locations.items()
     ]
 
-    bpy_params = [
+    bpyopt_params = [
         ephys.parameters.NrnSectionParameter(
             name=f"{param}_{glia.resolve(mech_id)}_{label}",
             param_name=f"{param}_{glia.resolve(mech_id)}",
-            locations=[bpy_seclists[label]],
-            frozen=not isinstance(constraint, list),
-            bounds=constraint if isinstance(constraint, list) else None,
-            value=constraint if not isinstance(constraint, list) else None,
+            locations=[bpyopt_seclists[label]],
+            **_to_bpyopt_kwargs(constraint),
         )
         for label, cable_type in cable_types.items()
         for mech_id, mech in cable_type.mechs.items()
         for param, constraint in mech.parameters.items()
     ]
-    for p in bpy_params:
-        print("name: ", p.name)
-        print("frozen: ", p.frozen)
-        print("bounds: ", p.bounds)
 
     # # todo: params: cable [frozen=true]
     #
@@ -89,4 +82,14 @@ def load_mechs_params(constraints: "ModelDefinition"):
     #         frozen=True,
     #     )
 
-    return bpy_mechs, bpy_params, [*bpy_seclists.keys()]
+    return bpyopt_mechs, bpyopt_params, [*bpyopt_seclists.keys()]
+
+
+def _to_bpyopt_kwargs(constraint: "ConstraintValue"):
+    constraint = Constraint.from_value(constraint)
+    frozen = constraint.upper == constraint.lower
+    return dict(
+        frozen=frozen,
+        bounds=[constraint.lower, constraint.upper] if not frozen else None,
+        value=constraint.upper if frozen else None,
+    )
