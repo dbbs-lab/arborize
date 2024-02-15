@@ -93,14 +93,14 @@ def to_mech_id(mech_id: MechId) -> MechIdTuple:
 
 class CableType:
     cable: CableProperties
-    mechs: dict[MechId, Mechanism]
     ions: dict[str, Ion]
+    mechs: dict[MechId, Mechanism]
     synapses: dict[str, Synapse]
 
     def __init__(self):
         self.cable = CableProperties()
-        self.mechs = {}
         self.ions = {}
+        self.mechs = {}
         self.synapses = {}
 
     def copy(self):
@@ -202,9 +202,9 @@ CableTypeDict = typing.TypedDict(
     "CableTypeDict",
     {
         "cable": CablePropertiesDict,
-        "mechanisms": dict[MechId, dict[str, float]],
         "ions": dict[str, IonDict],
-        "synapses": dict[str, SynapseDict],
+        "mechanisms": dict[MechId, dict[str, float]],
+        "synapses": dict[MechId, SynapseDict],
     },
     total=False,
 )
