@@ -285,14 +285,16 @@ def define_model(
     definition: ModelDefinitionDict,
     /,
     use_defaults: bool = ...,
-): ...
+) -> ModelDefinition: ...
 
 
 @typing.overload
-def define_model(definition: ModelDefinitionDict, /, use_defaults: bool = ...): ...
+def define_model(
+    definition: ModelDefinitionDict, /, use_defaults: bool = ...
+) -> ModelDefinition: ...
 
 
-def define_model(templ_or_def, def_dict=None, /, use_defaults=False):
+def define_model(templ_or_def, def_dict=None, /, use_defaults=False) -> ModelDefinition:
     if def_dict is None:
         model = _parse_dict_def(templ_or_def)
     else:
