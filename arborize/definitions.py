@@ -64,7 +64,7 @@ class Synapse(Mechanism):
         self.mech_id = to_mech_id(mech_id)
 
     def copy(self):
-        return Synapse(self.parameters.copy(), to_mech_id(self.mech_id))
+        return type(self)(self.parameters.copy(), to_mech_id(self.mech_id))
 
 
 SynapseDict = typing.Union[
