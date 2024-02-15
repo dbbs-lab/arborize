@@ -1,39 +1,11 @@
 import dataclasses
 import typing
 
+from ._util import Assert, Copy, MechId, MechIdTuple, Merge
 from .exceptions import ModelDefinitionError
 
 if typing.TYPE_CHECKING:
     from .parameter import Parameter
-
-MechIdTuple = typing.Union[tuple[str], tuple[str, str], tuple[str, str, str]]
-MechId = typing.Union[str, MechIdTuple]
-
-
-@dataclasses.dataclass
-class Copy:
-    def copy(self):
-        other = type(self)()
-        for field in dataclasses.fields(self):
-            setattr(other, field.name, getattr(self, field.name))
-        return other
-
-
-@dataclasses.dataclass
-class Merge:
-    def merge(self, other):
-        for field in dataclasses.fields(self):
-            value = getattr(other, field.name)
-            if value is not None:
-                setattr(self, field.name, value)
-
-
-@dataclasses.dataclass
-class Assert:
-    def assert_(self):
-        for field in dataclasses.fields(self):
-            if getattr(self, field.name, None) is None:
-                raise ValueError(f"Missing '{field.name}' value.", field.name)
 
 
 @dataclasses.dataclass
