@@ -353,13 +353,17 @@ def _parse_mech_def(mech_dict: dict[str, float]):
 def _parse_synapse_def(key, synapse_dict: SynapseDict):
     try:
         if "mechanism" in synapse_dict:
+            # If `mechanism` is specified, it must be an expanded dict
             synapse_dict: ExpandedSynapseDict
             synapse = Synapse(
+                # And if no parameters are given, set no parameters
                 synapse_dict.get("parameters", {}).copy(),
                 synapse_dict["mechanism"],
             )
         else:
+            # Otherwise, unless the key `parameters` is given, assume it's short form
             synapse = Synapse(
+                # And treat all given dict items as parameters
                 synapse_dict.get("parameters", synapse_dict).copy(),
                 key,
             )
