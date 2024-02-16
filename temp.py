@@ -7,17 +7,12 @@ from arborize.optimizers._bluepyopt import get_bpo_cell
 from arborize.schematics import bsb_schematic
 from arborize.builders import neuron_build
 
-morpho = parse_morphology_file("GranuleCell.swc", tags=dbbs_models.GranuleCellModel.swc_tags)
-definition = dbbs_models.GranuleCellModel
-def2 = definition.copy()
-
-# Tinker with definition so that Leak_gmax = [0.9, 1.1] bounds
-_params = [*def2._cable_types["soma"].mechs.values()][0].parameters
-_params["gmax"] = [_params["gmax"] * 0.999999, _params["gmax"] * 1.111111]
-del _params
-
+morpho = parse_morphology_file(
+    "GranuleCell.swc", tags=dbbs_models.GranuleCellModel.swc_tags
+)
+constraints =
 schema = bsb_schematic(morpho, dbbs_models.GranuleCellModel)
-cell = get_bpo_cell(schema, def2)
+cell = get_bpo_cell(schema, definition)
 print("PARAMS?", len(cell.params))
 
 soma_loc = ephys.locations.NrnSeclistCompLocation(
@@ -136,10 +131,13 @@ print("Fitness values: ", best_ind.fitness.values)
 grc = neuron_build(schema)
 
 best_ind_dict = cell_evaluator.param_dict(best_ind)
-responses = threestep_protocol.run(
-    cell_model=cell, param_values=best_ind_dict, sim=nrn
-)
+responses = threestep_protocol.run(cell_model=cell, param_values=best_ind_dict, sim=nrn)
 
 import plotly.graph_objs as go
 
-go.Figure([go.Scatter(x=resp["time"], y=resp["voltage"], name=name) for name, resp in responses.items()]).write_html("gpop.html")
+go.Figure(
+    [
+        go.Scatter(x=resp["time"], y=resp["voltage"], name=name)
+        for name, resp in responses.items()
+    ]
+).write_html("gpop.html")
