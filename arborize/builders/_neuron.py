@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Mapping, Sequence
 
 import errr
 
+from ..constraints import Constraint
 from .._util import get_arclengths, get_location_name
 from ..definitions import CableProperties, Ion, Mechanism, MechId, mechdict
 from ..exceptions import TransmitterError, UnknownLocationError, UnknownSynapseError
@@ -197,7 +198,9 @@ def apply_geometry(section, points):
 
 def apply_cable_properties(section, cable_props: "CableProperties"):
     for field in dataclasses.fields(cable_props):
-        setattr(section, field.name, getattr(cable_props, field.name))
+        prop = getattr(cable_props, field.name)
+        if not isinstance(prop, Constraint):
+            setattr(section, field.name, prop)
 
 
 def apply_ions(section, ions: typing.Dict[str, "Ion"]):

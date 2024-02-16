@@ -28,15 +28,14 @@ class ArborizeMorphology(ephys.morphologies.Morphology):
         pass
 
 
-def get_bpo_cell(schematic, constraints, name_cell="cell"):
+def get_bpo_cell(schematic, name_cell="cell"):
     morph = ArborizeMorphology(schematic)
-    mechs, params, locations = load_mechs_params(constraints)
-    return ephys.models.CellModel(
-        name_cell, morph, mechs, params, secarray_names=[], seclist_names=locations
-    )
-
-
-def load_mechs_params(constraints: "ConstraintsDefinition"):
+    schematic.freeze()
+    constraints = schematic.definition
+    if not isinstance(constraints, ConstraintsDefinition):
+        raise TypeError(
+            f"Optimization schematic must contain constraints, got {type(constraints)} instead."
+        )
     cable_types = constraints.get_cable_types()
 
     bpyopt_seclists = {

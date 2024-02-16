@@ -207,8 +207,8 @@ class Schematic:
                         f"Unlabeled {locstr} is missing value for {e.args[1]}."
                     ) from None
                 raise ModelDefinitionError(
-                    f"{locstr} labelled {errr.quotejoin(branch.labels)} misses value for "
-                    f"{e.args[1:]}"
+                    f"{locstr} labelled {errr.quotejoin(branch.labels)} "
+                    f"misses value for {e.args[1:]}"
                 ) from None
             self._flatten_branches(branch.children)
 

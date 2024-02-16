@@ -1,7 +1,7 @@
 import dataclasses
 import typing
 
-from ._util import Assert, Copy, MechId, MechIdTuple, Merge
+from ._util import Assert, Copy, MechId, MechIdTuple, Merge, Iterable
 from .exceptions import ModelDefinitionError
 
 if typing.TYPE_CHECKING:
@@ -9,18 +9,12 @@ if typing.TYPE_CHECKING:
 
 
 @dataclasses.dataclass
-class CableProperties(Copy, Merge, Assert):
+class CableProperties(Copy, Merge, Assert, Iterable):
     Ra: float = None
     cm: float = None
     """
     Axial resistivity in ohm/cm
     """
-
-    def copy(self):
-        other = type(self)()
-        for field in dataclasses.fields(self):
-            setattr(other, field.name, getattr(self, field.name))
-        return other
 
 
 CablePropertiesDict = typing.TypedDict(
@@ -31,7 +25,7 @@ CablePropertiesDict = typing.TypedDict(
 
 
 @dataclasses.dataclass
-class Ion(Copy, Merge, Assert):
+class Ion(Copy, Merge, Assert, Iterable):
     rev_pot: float = None
     int_con: float = None
     ext_con: float = None
@@ -286,29 +280,27 @@ def define_model(
     definition: ModelDefinitionDict,
     /,
     use_defaults: bool = ...,
-) -> ModelDefinition:
-    ...
+) -> ModelDefinition: ...
 
 
 @typing.overload
 def define_model(
     definition: ModelDefinitionDict, /, use_defaults: bool = ...
-) -> ModelDefinition:
-    ...
+) -> ModelDefinition: ...
 
 
 def define_model(templ_or_def, def_dict=None, /, use_defaults=False) -> ModelDefinition:
     if def_dict is None:
-        model = _parse_dict_def(templ_or_def)
+        model = _parse_dict_def(ModelDefinition, templ_or_def)
     else:
         model = templ_or_def.copy()
-        model.merge(_parse_dict_def(def_dict))
+        model.merge(_parse_dict_def(ModelDefinition, def_dict))
     model.use_defaults = use_defaults
     return model
 
 
-def _parse_dict_def(def_dict: ModelDefinitionDict):
-    model = ModelDefinition()
+def _parse_dict_def(cls: typing.Type[Definition], def_dict: ModelDefinitionDict):
+    model = cls()
     for label, def_input in def_dict.get("cable_types", {}).items():
         ct = _parse_cable_type(def_input)
         model.add_cable_type(label, ct)
