@@ -224,6 +224,28 @@ class Schematic:
 
     def _makedef(self, labels: typing.Sequence[str]) -> CableType:
         # Determine the cable type priority order based on the key order in the dict.
+        sort_labels = self._make_label_sorter()
+
+        return CableType.anchor(
+            (self._definition._cable_types.get(label) for label in sort_labels(labels)),
+            synapses=self._definition.get_synapse_types(),
+            use_defaults=self.definition.use_defaults,
+        )
+
+    def get_cable_types(self):
+        return self._definition.get_cable_types()
+
+    def get_synapse_types(self):
+        return self._definition.get_synapse_types()
+
+    def get_compound_cable_types(self):
+        if not self._frozen:
+            raise RuntimeError("Can only compound cable types in frozen schematic.")
+
+        name_labels = self._make_label_namer()
+        return {name_labels(branch.labels): branch.definition for branch in self}
+
+    def _make_label_sorter(self):
         insert_index = [*self._definition._cable_types.keys()].index
         len_ = len(self._definition._cable_types)
 
@@ -234,20 +256,13 @@ class Schematic:
                 insert = -1
             return (insert, lbl)
 
-        return CableType.anchor(
-            (
-                self._definition._cable_types.get(label)
-                for label in sorted(labels, key=label_order)
-            ),
-            synapses=self._definition.get_synapse_types(),
-            use_defaults=self.definition.use_defaults,
+        return lambda labels: sorted(labels, key=label_order)
+
+    def _make_label_namer(self):
+        sort_labels = self._make_label_sorter()
+        return lambda labels: "_".join(
+            l.replace("_", "__") for l in sort_labels(labels)
         )
-
-    def get_cable_types(self):
-        return self._definition.get_cable_types()
-
-    def get_synapse_types(self):
-        return self._definition.get_synapse_types()
 
 
 class Point:
