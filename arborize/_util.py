@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable
 import numpy as np
 import numpy.typing as npt
 
+
 if TYPE_CHECKING:
     from schematic import Point
 
@@ -55,7 +56,7 @@ class Merge:
     def merge(self, other):
         for field in dataclasses.fields(self):
             value = getattr(other, field.name)
-            if value is not None:
+            if value is not None and not is_empty_constraint(value):
                 setattr(self, field.name, value)
 
 
@@ -63,5 +64,12 @@ class Merge:
 class Assert:
     def assert_(self):
         for field in dataclasses.fields(self):
-            if getattr(self, field.name, None) is None:
+            value = getattr(self, field.name, None)
+            if value is None or is_empty_constraint(value):
                 raise ValueError(f"Missing '{field.name}' value.", field.name)
+
+
+def is_empty_constraint(value):
+    from .constraints import Constraint
+
+    return isinstance(value, Constraint) and value.upper is None
