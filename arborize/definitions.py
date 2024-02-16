@@ -286,13 +286,15 @@ def define_model(
     definition: ModelDefinitionDict,
     /,
     use_defaults: bool = ...,
-) -> ModelDefinition: ...
+) -> ModelDefinition:
+    ...
 
 
 @typing.overload
 def define_model(
     definition: ModelDefinitionDict, /, use_defaults: bool = ...
-) -> ModelDefinition: ...
+) -> ModelDefinition:
+    ...
 
 
 def define_model(templ_or_def, def_dict=None, /, use_defaults=False) -> ModelDefinition:
