@@ -10,8 +10,10 @@ from .definitions import (
     Mechanism,
     ModelDefinitionDict,
     Synapse,
+    _parse_dict_def,
     define_model,
 )
+import itertools
 
 
 @dataclasses.dataclass
@@ -27,6 +29,12 @@ class Constraint:
             return cls(value[0], value[1])
         else:
             return cls(value, value)
+
+    def add_tolerance(self, tolerance=None):
+        if tolerance is not None:
+            self.lower *= 1 - tolerance
+            self.upper *= 1 + tolerance
+        return self
 
 
 ConstraintValue = typing.Union[
@@ -107,7 +115,30 @@ CableTypeConstraintsDict = typing.TypedDict(
 
 
 class ConstraintsDefinition(Definition[CableTypeConstraints, SynapseConstraints]):
-    pass
+    def convert_to_constraints(self, tolerance=None):
+        for syn in self._synapse_types.values():
+            syn.parameters = {
+                k: Constraint.from_value(v).add_tolerance(tolerance)
+                for k, v in syn.parameters.items()
+            }
+
+        for ct in self._cable_types.values():
+            for field in dataclasses.fields(ct.cable):
+                _convert_field(ct.cable, field, tolerance)
+            for ion in ct.ions.values():
+                for field in dataclasses.fields(ion):
+                    _convert_field(ion, field, tolerance)
+            for mech in itertools.chain(ct.mechs.values(), ct.synapses.values()):
+                mech.parameters = {
+                    k: Constraint.from_value(v).add_tolerance(tolerance)
+                    for k, v in mech.parameters.items()
+                }
+
+
+def _convert_field(obj, field, tolerance):
+    constraint = Constraint.from_value(getattr(obj, field.name))
+    constraint.add_tolerance(tolerance)
+    setattr(obj, field.name, constraint)
 
 
 ConstraintsDefinitionDict = typing.TypedDict(
@@ -120,8 +151,9 @@ ConstraintsDefinitionDict = typing.TypedDict(
 )
 
 
-def define_constraints(constraints: ConstraintsDefinitionDict) -> ConstraintsDefinition:
-    return typing.cast(
-        ConstraintsDefinition,
-        define_model(typing.cast(ModelDefinitionDict, constraints)),
-    )
+def define_constraints(
+    constraints: ConstraintsDefinitionDict, tolerance=None
+) -> ConstraintsDefinition:
+    constraints = _parse_dict_def(ConstraintsDefinition, constraints)
+    constraints.convert_to_constraints(tolerance)
+    return constraints
