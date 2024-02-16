@@ -206,12 +206,13 @@ def apply_cable_properties(section, cable_props: "CableProperties"):
 def apply_ions(section, ions: typing.Dict[str, "Ion"]):
     prop_map = {"rev_pot": "e{ion}", "int_con": "{ion}i", "ext_con": "{ion}o"}
     for ion_name, ion_props in ions.items():
-        for field in dataclasses.fields(ion_props):
-            setattr(
-                section,
-                prop_map[field.name].format(ion=ion_name),
-                getattr(ion_props, field.name),
-            )
+        for prop, value in ion_props:
+            if not isinstance(value, Constraint):
+                setattr(
+                    section,
+                    prop_map[prop].format(ion=ion_name),
+                    value,
+                )
 
 
 def apply_mech_definitions(section, mech_defs: dict["MechId", "Mechanism"]):
@@ -222,7 +223,9 @@ def apply_mech_definitions(section, mech_defs: dict["MechId", "Mechanism"]):
         if isinstance(mech_id, str):
             mech_id = (mech_id,)
         mech = glia.insert(section, *mech_id)
-        mech.set(mech_def.parameters)
+        for param_name, param_value in mech_def.parameters.items():
+            if not isinstance(param_value, Constraint):
+                mech.set_parameter(param_name, param_value)
         mechs[mech_id] = mech
 
     return mechs
