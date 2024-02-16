@@ -67,13 +67,14 @@ class Synapse(Mechanism):
         return type(self)(self.parameters.copy(), to_mech_id(self.mech_id))
 
 
+ExpandedSynapseDict = typing.TypedDict(
+    "ExpandedSynapseDict",
+    {"mechanism": MechId, "parameters": dict[str, float]},
+    total=False,
+)
 SynapseDict = typing.Union[
     dict[str, float],
-    typing.TypedDict(
-        "SynapseDict",
-        {"mechanism": MechId, "parameters": dict[str, float]},
-        total=False,
-    ),
+    ExpandedSynapseDict,
 ]
 
 
@@ -351,10 +352,17 @@ def _parse_mech_def(mech_dict: dict[str, float]):
 
 def _parse_synapse_def(key, synapse_dict: SynapseDict):
     try:
-        synapse = Synapse(
-            synapse_dict.get("parameters", synapse_dict).copy(),
-            synapse_dict.get("mechanism", key),
-        )
+        if "mechanism" in synapse_dict:
+            synapse_dict: ExpandedSynapseDict
+            synapse = Synapse(
+                synapse_dict.get("parameters", {}).copy(),
+                synapse_dict["mechanism"],
+            )
+        else:
+            synapse = Synapse(
+                synapse_dict.get("parameters", synapse_dict).copy(),
+                key,
+            )
         return synapse
     except Exception:
         raise ModelDefinitionError(f"{synapse_dict} is not a valid synapse definition.")
