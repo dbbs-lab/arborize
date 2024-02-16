@@ -192,6 +192,16 @@ class Schematic:
             self._flatten_branches(self.roots)
             self._name = self._name if self._name is not None else _random_name()
             self._frozen = True
+            # If we are a constraint schematic, reconvert after freezing.
+            if hasattr(self.definition, "convert_to_constraints"):
+                self.definition.convert_to_constraints()
+                # fixme: ion defaults are not constraints
+                from .constraints import Constraint
+
+                for branch in self:
+                    for ion in branch.definition.ions.values():
+                        for prop, value in ion:
+                            setattr(ion, prop, Constraint.from_value(value))
 
     def _flatten_branches(self, branches: Iterable["UnitBranch"]):
         for branch in branches:
