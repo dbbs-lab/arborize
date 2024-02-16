@@ -16,24 +16,54 @@ from .definitions import (
 import itertools
 
 
-@dataclasses.dataclass
 class Constraint:
-    lower: float
-    upper: float
+    def __init__(self):
+        self._upper = None
+        self._lower = None
+        self._tolerance = None
+
+    @property
+    def tolerance(self):
+        return self._tolerance
+
+    @property
+    def lower(self):
+        value = self._lower
+        if self.tolerance is not None:
+            value *= 1 - self.tolerance
+        return value
+
+    @lower.setter
+    def lower(self, value: float):
+        self._lower = value
+
+    @property
+    def upper(self):
+        value = self._upper
+        if self.tolerance is not None:
+            value *= 1 - self.tolerance
+        return value
+
+    @upper.setter
+    def upper(self, value: float):
+        self._upper = value
 
     @classmethod
     def from_value(cls, value: "ConstraintValue") -> "Constraint":
         if isinstance(value, Constraint):
             return value
         elif isinstance(value, (list, tuple)):
-            return cls(value[0], value[1])
+            constraint = cls()
+            constraint.lower = value[0]
+            constraint.upper = value[1]
         else:
-            return cls(value, value)
+            constraint = cls()
+            constraint.upper = value
+            constraint.lower = value
+        return constraint
 
-    def add_tolerance(self, tolerance=None):
-        if tolerance is not None:
-            self.lower *= 1 - tolerance
-            self.upper *= 1 + tolerance
+    def set_tolerance(self, tolerance=None):
+        self._tolerance = tolerance
         return self
 
 
@@ -118,7 +148,7 @@ class ConstraintsDefinition(Definition[CableTypeConstraints, SynapseConstraints]
     def convert_to_constraints(self, tolerance=None):
         for syn in self._synapse_types.values():
             syn.parameters = {
-                k: Constraint.from_value(v).add_tolerance(tolerance)
+                k: Constraint.from_value(v).set_tolerance(tolerance)
                 for k, v in syn.parameters.items()
             }
 
@@ -130,14 +160,14 @@ class ConstraintsDefinition(Definition[CableTypeConstraints, SynapseConstraints]
                     _convert_field(ion, field, tolerance)
             for mech in itertools.chain(ct.mechs.values(), ct.synapses.values()):
                 mech.parameters = {
-                    k: Constraint.from_value(v).add_tolerance(tolerance)
+                    k: Constraint.from_value(v).set_tolerance(tolerance)
                     for k, v in mech.parameters.items()
                 }
 
 
 def _convert_field(obj, field, tolerance):
     constraint = Constraint.from_value(getattr(obj, field.name))
-    constraint.add_tolerance(tolerance)
+    constraint.set_tolerance(tolerance)
     setattr(obj, field.name, constraint)
 
 
@@ -152,8 +182,9 @@ ConstraintsDefinitionDict = typing.TypedDict(
 
 
 def define_constraints(
-    constraints: ConstraintsDefinitionDict, tolerance=None
+    constraints: ConstraintsDefinitionDict, tolerance=None, use_defaults=False
 ) -> ConstraintsDefinition:
     constraints = _parse_dict_def(ConstraintsDefinition, constraints)
     constraints.convert_to_constraints(tolerance)
+    constraints.use_defaults = use_defaults
     return constraints
