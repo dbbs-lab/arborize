@@ -43,6 +43,14 @@ class Copy:
 
 
 @dataclasses.dataclass
+class Iterable:
+    def __iter__(self):
+        yield from {
+            field.name: getattr(self, field.name) for field in dataclasses.fields(self)
+        }.items()
+
+
+@dataclasses.dataclass
 class Merge:
     def merge(self, other):
         for field in dataclasses.fields(self):
