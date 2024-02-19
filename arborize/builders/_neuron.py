@@ -43,8 +43,14 @@ class NeuronModel:
         la = self.get_location(loc)
         return la.section(la.arc(sx))
 
-    def filter_sections(self, labels: list[str]):
+    def get_sections_with_label(self, label: str):
+        return [s for s in self.sections if label in s.labels]
+
+    def get_sections_with_any_label(self, labels: list[str]):
         return [s for s in self.sections if any(lbl in labels for lbl in s.labels)]
+
+    def get_sections_with_all_labels(self, labels: list[str]):
+        return [s for s in self.sections if all(lbl in labels for lbl in s.labels)]
 
     def insert_synapse(
         self,

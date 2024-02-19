@@ -20,12 +20,10 @@ class ArborizeMorphology(ephys.morphologies.Morphology):
 
     def instantiate(self, sim, icell):
         arborized_cell = neuron_build(self._schematic)
-        sections = set()
         for label in self._schematic.get_compound_cable_types().keys():
             section_list = getattr(icell, label)
             labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
-            for sec in arborized_cell.filter_sections(labels):
-                sections.add(sec.hname())
+            for sec in arborized_cell.get_sections_with_all_labels(labels):
                 section_list.append(sec.__neuron__())
 
     def destroy(self, sim=None):

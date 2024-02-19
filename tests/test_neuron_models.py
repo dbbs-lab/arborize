@@ -20,9 +20,9 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(
             len(self.p75_pas), len(cell.sections), "constructed diff n branches"
         )
-        soma = cell.filter_sections(["soma"])
-        basal = cell.filter_sections(["basal_dendrite"])
-        apical = cell.filter_sections(["apical_dendrite"])
+        soma = cell.get_sections_with_any_label(["soma"])
+        basal = cell.get_sections_with_any_label(["basal_dendrite"])
+        apical = cell.get_sections_with_any_label(["apical_dendrite"])
         self.assertTrue(
             all("pas" in [mech.name() for mech in sec(0.5)] for sec in soma),
             "pas not inserted in all soma sections",
@@ -132,7 +132,7 @@ class TestTransmission(SchematicsFixture, unittest.TestCase):
     def test_transmitter_receiver(self):
         if not p.parallel.id():
             cell2 = neuron_build(self.p75_expsyn)
-            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            ais = cell2.get_sections_with_any_label(["soma"])[0].locations[-1]
             cell2.insert_transmitter(1, ais)
             cell2.insert_synapse("ExpSyn", (0, 0)).stimulate(
                 start=0, number=5, interval=10, weight=1, delay=1
@@ -160,7 +160,7 @@ class TestTransmission(SchematicsFixture, unittest.TestCase):
         # logic.
         if not p.parallel.id():
             cell2 = neuron_build(self.p75_expsyn)
-            ais = cell2.filter_sections(["soma"])[0].locations[-1]
+            ais = cell2.get_sections_with_any_label(["soma"])[0].locations[-1]
             cell2.insert_transmitter(2, ais)
             # Arborize doesn't let you place 2 transmitters on the same section for this reason,
             # so bypass the security measure by manually inserting another PCon.
