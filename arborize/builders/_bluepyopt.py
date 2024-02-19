@@ -2,8 +2,8 @@ import re
 import typing
 from collections import defaultdict
 
-from ._neuron import neuron_build
 from ..constraints import Constraint, ConstraintsDefinition
+from ._neuron import neuron_build
 
 if typing.TYPE_CHECKING:
     from ..schematic import Schematic

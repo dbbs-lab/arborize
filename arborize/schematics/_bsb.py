@@ -5,6 +5,7 @@ from ..schematic import Schematic
 
 if TYPE_CHECKING:
     from bsb.morphologies import Branch, Morphology
+
     from ..definitions import Definition
 
 

@@ -3,7 +3,7 @@ import dataclasses
 import typing
 from abc import abstractmethod
 
-from ._util import Assert, Copy, MechId, MechIdTuple, Merge, Iterable
+from ._util import Assert, Copy, Iterable, MechId, MechIdTuple, Merge
 from .exceptions import ModelDefinitionError
 
 if typing.TYPE_CHECKING:

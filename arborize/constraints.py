@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 import typing
 
 from ._util import MechId
@@ -11,7 +12,6 @@ from .definitions import (
     Synapse,
     _parse_dict_def,
 )
-import itertools
 
 
 class Constraint:

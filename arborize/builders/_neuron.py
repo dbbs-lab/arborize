@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Mapping, Sequence
 
 import errr
 
-from ..constraints import Constraint
 from .._util import get_arclengths, get_location_name
+from ..constraints import Constraint
 from ..definitions import CableProperties, Ion, Mechanism, MechId, mechdict
 from ..exceptions import TransmitterError, UnknownLocationError, UnknownSynapseError
 

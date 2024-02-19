@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Iterable
 import numpy as np
 import numpy.typing as npt
 
-
 if TYPE_CHECKING:
     from schematic import Point
 
