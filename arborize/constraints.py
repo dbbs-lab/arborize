@@ -8,10 +8,8 @@ from .definitions import (
     Definition,
     Ion,
     Mechanism,
-    ModelDefinitionDict,
     Synapse,
     _parse_dict_def,
-    define_model,
 )
 import itertools
 
@@ -72,6 +70,7 @@ ConstraintValue = typing.Union[
 ]
 
 
+@dataclasses.dataclass
 class CablePropertyConstraints(CableProperties):
     Ra: Constraint
     """
@@ -82,6 +81,10 @@ class CablePropertyConstraints(CableProperties):
     Membrane conductance
     """
 
+    def __post_init__(self):
+        for field in dataclasses.fields(self):
+            _convert_field(self, field)
+
 
 CablePropertyConstraintsDict = typing.TypedDict(
     "CablePropertyConstraintsDict",
@@ -90,10 +93,15 @@ CablePropertyConstraintsDict = typing.TypedDict(
 )
 
 
+@dataclasses.dataclass
 class IonConstraints(Ion):
     rev_pot: Constraint
     int_con: Constraint
     ext_con: Constraint
+
+    def __post_init__(self):
+        for field in dataclasses.fields(self):
+            _convert_field(self, field)
 
 
 IonConstraintsDict = typing.TypedDict(
@@ -110,8 +118,11 @@ IonConstraintsDict = typing.TypedDict(
 class MechanismConstraints(Mechanism):
     parameters: dict[str, Constraint]
 
+    def __init__(self, parameters: dict[str, ConstraintValue]):
+        super().__init__({k: Constraint.from_value(v) for k, v in parameters.items()})
 
-class SynapseConstraints(MechanismConstraints, Synapse):
+
+class SynapseConstraints(Synapse, MechanismConstraints):
     pass
 
 
@@ -144,30 +155,58 @@ CableTypeConstraintsDict = typing.TypedDict(
 )
 
 
-class ConstraintsDefinition(Definition[CableTypeConstraints, SynapseConstraints]):
-    def convert_to_constraints(self, tolerance=None):
+class ConstraintsDefinition(
+    Definition[
+        CableTypeConstraints,
+        CablePropertyConstraints,
+        IonConstraints,
+        MechanismConstraints,
+        SynapseConstraints,
+    ]
+):
+    @classmethod
+    @property
+    def cable_type_class(cls):
+        return CableTypeConstraints
+
+    @classmethod
+    @property
+    def cable_properties_class(cls):
+        return CablePropertyConstraints
+
+    @classmethod
+    @property
+    def ion_class(cls):
+        return IonConstraints
+
+    @classmethod
+    @property
+    def mechanism_class(cls):
+        return MechanismConstraints
+
+    @classmethod
+    @property
+    def synapse_class(cls):
+        return SynapseConstraints
+
+    def set_tolerance(self, tolerance=None):
         for syn in self._synapse_types.values():
-            syn.parameters = {
-                k: Constraint.from_value(v).set_tolerance(tolerance)
-                for k, v in syn.parameters.items()
-            }
+            for p in syn.parameters.values():
+                p.set_tolerance(tolerance)
 
         for ct in self._cable_types.values():
             for field in dataclasses.fields(ct.cable):
-                _convert_field(ct.cable, field, tolerance)
+                getattr(ct.cable, field.name).set_tolerance(tolerance)
             for ion in ct.ions.values():
                 for field in dataclasses.fields(ion):
-                    _convert_field(ion, field, tolerance)
+                    getattr(ion, field.name).set_tolerance(tolerance)
             for mech in itertools.chain(ct.mechs.values(), ct.synapses.values()):
-                mech.parameters = {
-                    k: Constraint.from_value(v).set_tolerance(tolerance)
-                    for k, v in mech.parameters.items()
-                }
+                for p in mech.parameters.values():
+                    p.set_tolerance(tolerance)
 
 
-def _convert_field(obj, field, tolerance):
+def _convert_field(obj, field):
     constraint = Constraint.from_value(getattr(obj, field.name))
-    constraint.set_tolerance(tolerance)
     setattr(obj, field.name, constraint)
 
 
@@ -185,6 +224,6 @@ def define_constraints(
     constraints: ConstraintsDefinitionDict, tolerance=None, use_defaults=False
 ) -> ConstraintsDefinition:
     constraints = _parse_dict_def(ConstraintsDefinition, constraints)
-    constraints.convert_to_constraints(tolerance)
+    constraints.set_tolerance(tolerance)
     constraints.use_defaults = use_defaults
     return constraints
