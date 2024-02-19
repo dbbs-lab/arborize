@@ -21,14 +21,12 @@ class ArborizeMorphology(ephys.morphologies.Morphology):
     def instantiate(self, sim, icell):
         arborized_cell = neuron_build(self._schematic)
         sections = set()
-        for label in self._schematic.get_cable_types().keys():
+        for label in self._schematic.get_compound_cable_types().keys():
             section_list = getattr(icell, label)
-            labels = [label]
-            # labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
+            labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
             for sec in arborized_cell.filter_sections(labels):
                 sections.add(sec.hname())
                 section_list.append(sec.__neuron__())
-        print("Added", len(sections), "sections")
 
     def destroy(self, sim=None):
         pass
@@ -42,7 +40,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
         raise TypeError(
             f"Optimization schematic must contain constraints, got {type(constraints)} instead."
         )
-    cable_types = schematic.get_cable_types()
+    cable_types = schematic.get_compound_cable_types()
 
     bpyopt_seclists = {
         label: ephys.locations.NrnSeclistLocation(label, seclist_name=label)
