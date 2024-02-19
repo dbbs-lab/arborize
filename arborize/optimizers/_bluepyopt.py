@@ -68,6 +68,19 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
         for prop, constraint in cable_type.cable
     ]
 
+    ion_prop_map = {"rev_pot": "e{ion}", "int_con": "{ion}i", "ext_con": "{ion}o"}
+    bpyopt_ion_params = [
+        ephys.parameters.NrnSectionParameter(
+            name=f"{label}_{ion}_{prop}",
+            param_name=ion_prop_map[prop].format(ion=ion_name),
+            locations=[bpyopt_seclists[label]],
+            **_to_bpyopt_kwargs(constraint, f"{label}_{prop}"),
+        )
+        for label, cable_type in cable_types.items()
+        for ion_name, ion in cable_type.ions.items()
+        for prop, constraint in ion
+    ]
+
     bpyopt_mech_params = [
         ephys.parameters.NrnSectionParameter(
             name=f"{param}_{glia.resolve(mech_id)}_{label}",
@@ -86,6 +99,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
         ),
         *bpyopt_mech_params,
         *bpyopt_cable_params,
+        *bpyopt_ion_params,
     ]
 
     return ephys.models.CellModel(
@@ -96,25 +110,6 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
         secarray_names=[],
         seclist_names=[*bpyopt_seclists.keys()],
     )
-
-
-def load_mechs_params(constraints: "ConstraintsDefinition"):
-
-    # # todo: params: cable [frozen=true]
-    #
-    # # todo: params: ions [frozen=True]
-    # for i_ion, ion_i in enumerate(constraints.get_cable_types()[sec_i].ions.keys()):
-    #     param_name = "%s_%s" % (ion_i, sec_i)
-    #     value = constraints.get_cable_types()[sec_i].ions[ion_i].rev_pot
-    #     params[param_name] = ephys.parameters.NrnSectionParameter(
-    #         name=param_name,
-    #         param_name=param_name,
-    #         value=value,
-    #         locations=[locations[sec_i]],
-    #         frozen=True,
-    #     )
-
-    return bpyopt_mechs, bpyopt_params, [*bpyopt_seclists.keys()]
 
 
 def _to_bpyopt_kwargs(constraint: "Constraint", label: str):

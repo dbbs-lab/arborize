@@ -121,8 +121,9 @@ class CableType:
         defs: typing.Iterable["CableType"],
         synapses: dict[MechId, Synapse] = None,
         use_defaults: bool = False,
+        ion_class=Ion,
     ) -> "CableType":
-        def_ = cls() if not use_defaults else cls.default()
+        def_ = cls() if not use_defaults else cls.default(ion_class)
         if synapses is not None:
             # We need to merge the local synapses on top of the global ones,
             # without mutating the global dictionary. So we:
@@ -169,11 +170,11 @@ class CableType:
                 ) from None
 
     @classmethod
-    def default(cls):
+    def default(cls, ion_class=Ion):
         default = cls()
         default.cable.Ra = 35.4
         default.cable.cm = 1
-        default.ions = default_ions_dict()
+        default.ions = default_ions_dict(ion_class)
         return default
 
     def add_ion(self, key: str, ion: Ion):
@@ -210,15 +211,26 @@ CableTypeDict = typing.TypedDict(
 
 
 class default_ions_dict(dict):
-    _defaults = {
-        "na": Ion(rev_pot=50.0, int_con=10.0, ext_con=140.0),
-        "k": Ion(rev_pot=-77.0, int_con=54.4, ext_con=2.5),
-        "ca": Ion(rev_pot=132.4579341637009, int_con=5e-05, ext_con=2.0),
-        "h": Ion(rev_pot=0.0, int_con=1.0, ext_con=1.0),
-    }
+    def __init__(self, ion_class, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ion_class = ion_class
+
+    def _make_defaults(self):
+        self._defaults = {
+            "na": self._ion_class(rev_pot=50.0, int_con=10.0, ext_con=140.0),
+            "k": self._ion_class(rev_pot=-77.0, int_con=54.4, ext_con=2.5),
+            "ca": self._ion_class(
+                rev_pot=132.4579341637009, int_con=5e-05, ext_con=2.0
+            ),
+            "h": self._ion_class(rev_pot=0.0, int_con=1.0, ext_con=1.0),
+        }
 
     def __setitem__(self, key, ion):
         if key not in self:
+            if not hasattr(self, "_defaults"):
+                if not hasattr(self, "_ion_class"):
+                    self._ion_class = type(ion)
+                self._make_defaults()
             value = self._defaults[key].copy()
             # Do a criss-cross merge to merge defaults into the original ion object
             value.merge(ion)

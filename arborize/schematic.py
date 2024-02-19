@@ -225,11 +225,11 @@ class Schematic:
     def _makedef(self, labels: typing.Sequence[str]) -> CableType:
         # Determine the cable type priority order based on the key order in the dict.
         sort_labels = self._make_label_sorter()
-
         return self.definition.cable_type_class.anchor(
             (self._definition._cable_types.get(label) for label in sort_labels(labels)),
             synapses=self._definition.get_synapse_types(),
             use_defaults=self.definition.use_defaults,
+            ion_class=self._definition.ion_class,
         )
 
     def get_cable_types(self):
