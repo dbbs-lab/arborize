@@ -2,16 +2,20 @@ import itertools
 import os
 import re
 import tempfile
+import typing
 from typing import Optional, TextIO, Union
 
 from morphio import Morphology, SomaType
 
-from ..schematic import ModelDefinition, Schematic
+from ..schematic import Schematic
+
+if typing.TYPE_CHECKING:
+    from ..definitions import Definition
 
 
 def file_schematic(
     file_like: Union["str", "os.PathLike", TextIO],
-    definitions: Optional["ModelDefinition"] = None,
+    definitions: Optional["Definition"] = None,
     fname: str = None,
     *,
     name=None,

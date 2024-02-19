@@ -3,7 +3,7 @@ Write descriptions for NEURON cell models in an Arbor-like manner for both the A
 NEURON brain simulation engines.
 """
 
-from .builders import arbor_build, neuron_build
+from .builders import arbor_build, bluepyopt_build, neuron_build
 from .constraints import define_constraints
 from .definitions import (
     CableProperties,
@@ -26,6 +26,7 @@ __all__ = [
     "ModelDefinition",
     "Schematic",
     "arbor_build",
+    "bluepyopt_build",
     "bsb_schematic",
     "define_constraints",
     "define_model",

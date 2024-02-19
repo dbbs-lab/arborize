@@ -2,36 +2,34 @@ import re
 import typing
 from collections import defaultdict
 
-import bluepyopt.ephys as ephys
-import glia
-
-from ..builders import neuron_build
-from ..constraints import Constraint, ConstraintsDefinition, ConstraintValue
+from ._neuron import neuron_build
+from ..constraints import Constraint, ConstraintsDefinition
 
 if typing.TYPE_CHECKING:
     from ..schematic import Schematic
 
 
-class ArborizeMorphology(ephys.morphologies.Morphology):
-    def __init__(self, schematic: "Schematic", debug=None):
-        super().__init__()
-        self._schematic = schematic
-        self._debug = debug
+def bluepyopt_build(schematic: "Schematic"):
+    import bluepyopt.ephys as ephys
+    import glia
 
-    def instantiate(self, sim, icell):
-        arborized_cell = neuron_build(self._schematic)
-        for label in self._schematic.get_compound_cable_types().keys():
-            section_list = getattr(icell, label)
-            labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
-            for sec in arborized_cell.get_sections_with_all_labels(labels):
-                section_list.append(sec.__neuron__())
+    class ArborizeMorphology(ephys.morphologies.Morphology):
+        def __init__(self, schematic: "Schematic"):
+            super().__init__()
+            self._schematic = schematic
 
-    def destroy(self, sim=None):
-        pass
+        def instantiate(self, _sim, icell):
+            arborized_cell = neuron_build(self._schematic)
+            for label in self._schematic.get_compound_cable_types().keys():
+                section_list = getattr(icell, label)
+                labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
+                for sec in arborized_cell.get_sections_with_all_labels(labels):
+                    section_list.append(sec.__neuron__())
 
+        def destroy(self, sim=None):
+            pass
 
-def get_bpo_cell(schematic, name_cell="cell", debug=None):
-    morph = ArborizeMorphology(schematic, debug=debug)
+    morph = ArborizeMorphology(schematic)
     schematic.freeze()
     constraints = schematic.definition
     if not isinstance(constraints, ConstraintsDefinition):
@@ -62,7 +60,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
             name=f"{label}_{prop}",
             param_name=prop,
             locations=[bpyopt_seclists[label]],
-            **_to_bpyopt_kwargs(constraint, f"{label}_{prop}"),
+            **_to_bpyopt_kwargs(constraint),
         )
         for label, cable_type in cable_types.items()
         for prop, constraint in cable_type.cable
@@ -74,7 +72,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
             name=f"{label}_{ion}_{prop}",
             param_name=ion_prop_map[prop].format(ion=ion_name),
             locations=[bpyopt_seclists[label]],
-            **_to_bpyopt_kwargs(constraint, f"{label}_{prop}"),
+            **_to_bpyopt_kwargs(constraint),
         )
         for label, cable_type in cable_types.items()
         for ion_name, ion in cable_type.ions.items()
@@ -86,7 +84,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
             name=f"{param}_{glia.resolve(mech_id)}_{label}",
             param_name=f"{param}_{glia.resolve(mech_id)}",
             locations=[bpyopt_seclists[label]],
-            **_to_bpyopt_kwargs(constraint, ""),
+            **_to_bpyopt_kwargs(constraint),
         )
         for label, cable_type in cable_types.items()
         for mech_id, mech in cable_type.mechs.items()
@@ -103,7 +101,7 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
     ]
 
     return ephys.models.CellModel(
-        name_cell,
+        schematic.create_name(),
         morph,
         bpyopt_mechs,
         bpyopt_params,
@@ -112,12 +110,8 @@ def get_bpo_cell(schematic, name_cell="cell", debug=None):
     )
 
 
-def _to_bpyopt_kwargs(constraint: "Constraint", label: str):
+def _to_bpyopt_kwargs(constraint: "Constraint"):
     frozen = constraint.upper == constraint.lower
-    if label == "axon_Ra":
-        constraint.upper = 100
-    elif label == "axon_cm":
-        constraint.upper = 1
     return dict(
         frozen=frozen,
         bounds=[constraint.lower, constraint.upper] if not frozen else None,

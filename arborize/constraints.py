@@ -65,9 +65,7 @@ class Constraint:
         return self
 
 
-ConstraintValue = typing.Union[
-    Constraint, float, tuple[float, float], list[float, float]
-]
+ConstraintValue = typing.Union[Constraint, float, tuple[float, float], list[float]]
 
 
 @dataclasses.dataclass

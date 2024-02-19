@@ -184,11 +184,3 @@ class TestTransmission(SchematicsFixture, unittest.TestCase):
             # fails NEURON finally fixed that! :tada:
             self.assertEqual(1, len(spid))
         self.assertTrue(np.any(np.array(r) != -65))
-
-
-tagsGrC = {
-    16: ["axon", "axon_hillock"],
-    17: ["axon", "axon_initial_segment"],
-    18: ["axon", "ascending_axon"],
-    19: ["axon", "parallel_fiber"],
-}

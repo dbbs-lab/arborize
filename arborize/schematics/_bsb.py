@@ -5,12 +5,11 @@ from ..schematic import Schematic
 
 if TYPE_CHECKING:
     from bsb.morphologies import Branch, Morphology
-
-    from ..schematic import ModelDefinition
+    from ..definitions import Definition
 
 
 def bsb_schematic(
-    morphology: "Morphology", definitions: Optional["ModelDefinition"] = None
+    morphology: "Morphology", definitions: Optional["Definition"] = None
 ) -> Schematic:
     schematic = Schematic(name=morphology.meta.get("name"))
     branches: list["Branch"] = [*morphology.branches]
