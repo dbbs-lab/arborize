@@ -1,3 +1,4 @@
+import os
 import re
 import typing
 from collections import defaultdict
@@ -13,21 +14,30 @@ def bluepyopt_build(schematic: "Schematic"):
     import bluepyopt.ephys as ephys
     import glia
 
+    if os.getenv("ARBORIZE_DILL", True):
+        import multiprocessing
+
+        import dill
+
+        dill.Pickler.dumps, dill.Pickler.loads = dill.dumps, dill.loads
+        multiprocessing.reduction.ForkingPickler = dill.Pickler
+        multiprocessing.reduction.dump = dill.dump
+
     class ArborizeMorphology(ephys.morphologies.Morphology):
         def __init__(self, schematic: "Schematic"):
             super().__init__()
             self._schematic = schematic
 
-        def instantiate(self, _sim, icell):
-            arborized_cell = neuron_build(self._schematic)
+        def instantiate(self, sim=None, icell=None):
+            self.arborized_cell = neuron_build(self._schematic)
             for label in self._schematic.get_compound_cable_types().keys():
                 section_list = getattr(icell, label)
                 labels = [l.replace("__", "_") for l in re.split("(?<!_)_(?!_)", label)]
-                for sec in arborized_cell.get_sections_with_all_labels(labels):
+                for sec in self.arborized_cell.get_sections_with_all_labels(labels):
                     section_list.append(sec.__neuron__())
 
         def destroy(self, sim=None):
-            pass
+            del self.arborized_cell
 
     morph = ArborizeMorphology(schematic)
     schematic.freeze()
