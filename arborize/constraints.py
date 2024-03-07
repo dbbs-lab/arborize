@@ -140,6 +140,17 @@ class CableTypeConstraints(CableType):
     ions: dict[str, IonConstraints]
     synapses: dict[str, SynapseConstraints]
 
+    @classmethod
+    def default(cls, ion_class=IonConstraints):
+        default = super().default(ion_class=ion_class)
+        for field in dataclasses.fields(default.cable):
+            setattr(
+                default.cable,
+                field.name,
+                Constraint.from_value(getattr(default.cable, field.name)),
+            )
+        return default
+
 
 CableTypeConstraintsDict = typing.TypedDict(
     "CableTypeConstraintsDict",
