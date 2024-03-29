@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from ..schematic import Schematic
 
 if TYPE_CHECKING:
-    from bsb.morphologies import Branch, Morphology
+    from bsb import Branch, Morphology
 
     from ..definitions import Definition
 
