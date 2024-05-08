@@ -18,6 +18,9 @@ class CableProperties(Copy, Merge, Assert, Iterable):
     Axial resistivity in ohm/cm
     """
 
+    def _to_dict(self) -> dict:
+        return {"Ra": self.Ra, "cm": self.cm}
+
 
 CablePropertiesDict = typing.TypedDict(
     "CablePropertiesDict",
@@ -32,6 +35,8 @@ class Ion(Copy, Merge, Assert, Iterable):
     int_con: float = None
     ext_con: float = None
 
+    def _to_dict(self) -> dict:
+        return {"rev_pot": self.rev_pot, "int_con": self.int_con, "ext_con": self.ext_con}
 
 IonDict = typing.TypedDict(
     "IonDict",
@@ -51,6 +56,9 @@ class Mechanism:
 
     def copy(self):
         return Mechanism(self.parameters.copy())
+
+    def _to_dict(self):
+        return {k: v for k, v in self.parameters.items()}
 
 
 class Synapse(Mechanism):
@@ -114,6 +122,13 @@ class CableType:
             param.set_cable_params(self.cable)
         if hasattr(param, "set_mech_params"):
             param.set_mech_params(self.mechs)
+
+    def _to_dict(self):
+        cable_dict={}
+        cable_dict['ions'] = {k: v._to_dict() for k, v in self.ions.items()}
+        cable_dict['mechs'] = {k: v._to_dict() for k, v in self.mechs.items()}
+        cable_dict['synapses'] = {k: v._to_dict() for k, v in self.synapses.items()}
+        return cable_dict
 
     @classmethod
     def anchor(
@@ -308,6 +323,12 @@ class Definition(typing.Generic[CT, CP, I, M, S], abc.ABC):
             raise KeyError(f"Synapse type {label} already exists.")
         self._synapse_types[label] = synapse
 
+    def _to_dict(self) -> dict:
+        cable_dict= {k: v._to_dict() for k, v in self._cable_types.items()}
+        synapse_dict= {k: v._to_dict() for k, v in self._synapse_types.items()}
+        model_dict = {'cable_types': cable_dict, 'synapse_types': synapse_dict}
+        return model_dict
+
 
 class ModelDefinition(Definition[CableType, CableProperties, Ion, Mechanism, Synapse]):
     @classmethod
@@ -372,6 +393,8 @@ def define_model(templ_or_def, def_dict=None, /, use_defaults=False) -> ModelDef
 
 
 D = typing.TypeVar("D", bound=Definition)
+
+
 
 
 def _parse_dict_def(cls: typing.Type[D], def_dict: ModelDefinitionDict) -> D:
