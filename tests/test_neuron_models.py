@@ -122,3 +122,66 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         n_locs = sum(len(c.points) for c in self.p75_pas.cables)
         self.assertEqual(len(self.p75_pas.cables), len(cell.sections), "missing cables")
         self.assertEqual(n_locs, sum(s.n3d() for s in cell.sections), "missing locs")
+
+
+@unittest.skipIf(
+    "NRN_SEGFAULT" in os.environ,
+    "These tests are skipped to test the other tests below separately. See https://github.com/neuronsimulator/nrn/issues/2641",
+)
+class TestDefinitions(SchematicsFixture, unittest.TestCase):
+    def setUp(self):
+        self.model = define_model(
+            {
+                "cable_types": {
+                    "soma": {
+                        "cable": {"Ra": 102, "cm": 2.1},
+                        "ions": {
+                            "k": {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
+                            "na": {"rev_pot": 137.5, "int_con": 20, "ext_con": 130},
+                        },
+                        "mechanisms": {
+                            "pas": {"e": -70, "g": 0.01},
+                            "hh": {
+                                "gnabar": 0,
+                                "gkbar": 0.036,
+                                "gl": 0.0003,
+                                "el": -54.3,
+                            },
+                        },
+                    },
+                },
+                "synapse_types": {"GABA": {"parameters": {"U": 0.77}}},
+            },
+            use_defaults=True,
+        )
+
+    def test_definitions_copy(self):
+        copied_model = self.model.copy()
+        self.assertEqual(
+            copied_model._synapse_types["GABA"], self.model._synapse_types["GABA"]
+        )
+        self.assertEqual(
+            copied_model._cable_types["soma"].cable,
+            self.model._cable_types["soma"].cable,
+        )
+
+    def test_definitions_to_dict(self):
+
+        model_dict = self.model._to_dict()
+        self.assertEqual(model_dict["synapse_types"]["GABA"]["U"], 0.77)
+        self.assertEqual(
+            model_dict["cable_types"]["soma"]["ions"]["k"],
+            {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
+        )
+        self.assertEqual(
+            model_dict["cable_types"]["soma"]["ions"]["k"],
+            {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
+        )
+        self.assertEqual(
+            model_dict["cable_types"]["soma"]["cable"],
+            {"Ra": 102, "cm": 2.1},
+        )
+        self.assertEqual(
+            model_dict["cable_types"]["soma"]["mechanisms"]["pas"],
+            {"e": -70, "g": 0.01},
+        )
