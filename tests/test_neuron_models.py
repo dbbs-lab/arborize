@@ -124,10 +124,7 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(n_locs, sum(s.n3d() for s in cell.sections), "missing locs")
 
 
-@unittest.skipIf(
-    "NRN_SEGFAULT" in os.environ,
-    "These tests are skipped to test the other tests below separately. See https://github.com/neuronsimulator/nrn/issues/2641",
-)
+
 class TestDefinitions(SchematicsFixture, unittest.TestCase):
     def setUp(self):
         self.model = define_model(
