@@ -124,7 +124,6 @@ class TestModelBuilding(SchematicsFixture, unittest.TestCase):
         self.assertEqual(n_locs, sum(s.n3d() for s in cell.sections), "missing locs")
 
 
-
 class TestDefinitions(SchematicsFixture, unittest.TestCase):
     def setUp(self):
         self.model = define_model(
