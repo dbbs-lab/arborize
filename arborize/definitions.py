@@ -19,7 +19,7 @@ class CableProperties(Copy, Merge, Assert, Iterable):
     """
 
     def _to_dict(self) -> dict:
-        return {"Ra": self.Ra, "cm": self.cm}
+        return dataclasses.asdict(self)
 
 
 CablePropertiesDict = typing.TypedDict(
@@ -36,7 +36,8 @@ class Ion(Copy, Merge, Assert, Iterable):
     ext_con: float = None
 
     def _to_dict(self) -> dict:
-        return {"rev_pot": self.rev_pot, "int_con": self.int_con, "ext_con": self.ext_con}
+        return dataclasses.asdict(self)
+
 
 IonDict = typing.TypedDict(
     "IonDict",
@@ -124,10 +125,11 @@ class CableType:
             param.set_mech_params(self.mechs)
 
     def _to_dict(self):
-        cable_dict={}
-        cable_dict['ions'] = {k: v._to_dict() for k, v in self.ions.items()}
-        cable_dict['mechs'] = {k: v._to_dict() for k, v in self.mechs.items()}
-        cable_dict['synapses'] = {k: v._to_dict() for k, v in self.synapses.items()}
+        cable_dict = {}
+        cable_dict["ions"] = {k: v._to_dict() for k, v in self.ions.items()}
+        cable_dict["cable"] = self.cable._to_dict()
+        cable_dict["mechanisms"] = {k: v._to_dict() for k, v in self.mechs.items()}
+        cable_dict["synapses"] = {k: v._to_dict() for k, v in self.synapses.items()}
         return cable_dict
 
     @classmethod
@@ -324,9 +326,9 @@ class Definition(typing.Generic[CT, CP, I, M, S], abc.ABC):
         self._synapse_types[label] = synapse
 
     def _to_dict(self) -> dict:
-        cable_dict= {k: v._to_dict() for k, v in self._cable_types.items()}
-        synapse_dict= {k: v._to_dict() for k, v in self._synapse_types.items()}
-        model_dict = {'cable_types': cable_dict, 'synapse_types': synapse_dict}
+        cable_dict = {k: v._to_dict() for k, v in self._cable_types.items()}
+        synapse_dict = {k: v._to_dict() for k, v in self._synapse_types.items()}
+        model_dict = {"cable_types": cable_dict, "synapse_types": synapse_dict}
         return model_dict
 
 
@@ -393,8 +395,6 @@ def define_model(templ_or_def, def_dict=None, /, use_defaults=False) -> ModelDef
 
 
 D = typing.TypeVar("D", bound=Definition)
-
-
 
 
 def _parse_dict_def(cls: typing.Type[D], def_dict: ModelDefinitionDict) -> D:
