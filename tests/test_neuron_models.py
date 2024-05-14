@@ -174,8 +174,8 @@ class TestDefinitions(SchematicsFixture, unittest.TestCase):
             {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
         )
         self.assertEqual(
-            model_dict["cable_types"]["soma"]["ions"]["k"],
-            {"rev_pot": -80.993, "int_con": 60, "ext_con": 4},
+            model_dict["cable_types"]["soma"]["ions"]["na"],
+            {"rev_pot": 137.5, "int_con": 20, "ext_con": 130},
         )
         self.assertEqual(
             model_dict["cable_types"]["soma"]["cable"],

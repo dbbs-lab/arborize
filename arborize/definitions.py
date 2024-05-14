@@ -19,7 +19,7 @@ class CableProperties(Copy, Merge, Assert, Iterable):
     """
 
     def _to_dict(self) -> dict:
-        return {"Ra": self.Ra, "cm": self.cm}
+        return dataclasses.asdict(self)
 
 
 CablePropertiesDict = typing.TypedDict(
@@ -36,11 +36,7 @@ class Ion(Copy, Merge, Assert, Iterable):
     ext_con: float = None
 
     def _to_dict(self) -> dict:
-        return {
-            "rev_pot": self.rev_pot,
-            "int_con": self.int_con,
-            "ext_con": self.ext_con,
-        }
+        return dataclasses.asdict(self)
 
 
 IonDict = typing.TypedDict(
