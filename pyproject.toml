@@ -27,7 +27,7 @@ Home = "https://github.com/dbbs-lab/arborize"
 profile = "black"
 
 [tool.bumpversion]
-current_version = "4.0.1"
+current_version = "4.1.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
