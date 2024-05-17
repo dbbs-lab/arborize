@@ -18,7 +18,7 @@ class CableProperties(Copy, Merge, Assert, Iterable):
     Axial resistivity in ohm/cm
     """
 
-    def _to_dict(self) -> dict:
+    def to_dict(self) -> dict:
         return dataclasses.asdict(self)
 
 
@@ -35,7 +35,7 @@ class Ion(Copy, Merge, Assert, Iterable):
     int_con: float = None
     ext_con: float = None
 
-    def _to_dict(self) -> dict:
+    def to_dict(self) -> dict:
         return dataclasses.asdict(self)
 
 
@@ -58,7 +58,7 @@ class Mechanism:
     def copy(self):
         return Mechanism(self.parameters.copy())
 
-    def _to_dict(self):
+    def to_dict(self):
         return {k: v for k, v in self.parameters.items()}
 
 
@@ -124,12 +124,12 @@ class CableType:
         if hasattr(param, "set_mech_params"):
             param.set_mech_params(self.mechs)
 
-    def _to_dict(self):
+    def to_dict(self):
         cable_dict = {}
-        cable_dict["ions"] = {k: v._to_dict() for k, v in self.ions.items()}
-        cable_dict["cable"] = self.cable._to_dict()
-        cable_dict["mechanisms"] = {k: v._to_dict() for k, v in self.mechs.items()}
-        cable_dict["synapses"] = {k: v._to_dict() for k, v in self.synapses.items()}
+        cable_dict["ions"] = {k: v.to_dict() for k, v in self.ions.items()}
+        cable_dict["cable"] = self.cable.to_dict()
+        cable_dict["mechanisms"] = {k: v.to_dict() for k, v in self.mechs.items()}
+        cable_dict["synapses"] = {k: v.to_dict() for k, v in self.synapses.items()}
         return cable_dict
 
     @classmethod
@@ -325,9 +325,9 @@ class Definition(typing.Generic[CT, CP, I, M, S], abc.ABC):
             raise KeyError(f"Synapse type {label} already exists.")
         self._synapse_types[label] = synapse
 
-    def _to_dict(self) -> dict:
-        cable_dict = {k: v._to_dict() for k, v in self._cable_types.items()}
-        synapse_dict = {k: v._to_dict() for k, v in self._synapse_types.items()}
+    def to_dict(self) -> dict:
+        cable_dict = {k: v.to_dict() for k, v in self._cable_types.items()}
+        synapse_dict = {k: v.to_dict() for k, v in self._synapse_types.items()}
         model_dict = {"cable_types": cable_dict, "synapse_types": synapse_dict}
         return model_dict
 

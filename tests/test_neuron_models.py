@@ -163,7 +163,7 @@ class TestDefinitions(SchematicsFixture, unittest.TestCase):
 
     def test_definitions_to_dict(self):
 
-        model_dict = self.model._to_dict()
+        model_dict = self.model.to_dict()
         self.assertEqual(model_dict["synapse_types"]["GABA"]["U"], 0.77)
         self.assertEqual(
             model_dict["cable_types"]["soma"]["ions"]["k"],
